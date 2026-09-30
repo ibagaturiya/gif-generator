@@ -113,7 +113,7 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
 </head>
 <body>
-<div id="version"><span id="versionText">v0.2.1</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<div id="version"><span id="versionText">v0.3</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -154,11 +154,14 @@
     <div id="layoutBody" class="off">
       <label class="lbl keep">File</label>
       <span class="wide keep row"><button id="bLayout">choose PNG / PDF…</button><span id="layoutName" class="muted"></span></span>
-      <label class="lbl" for="scale">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
+      <label class="lbl" for="scale" id="scaleLbl">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
       <label class="lbl">Place</label>
-      <span class="wide row"><button id="bFill" title="Cover the transparent opening of the layout">fill opening</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></span>
+      <span class="wide row"><button id="bFill" title="Frame = the transparent opening, the picture covers it">fill opening</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></span>
       <span class="all muted">PNG or PDF (page 1), transparent where the GIF shows. The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</span>
     </div>
+    <label class="lbl">Crop</label>
+    <span class="wide row"><button id="bCrop" title="Or double-click the preview. Esc to finish.">crop</button><button id="bCropReset" title="Picture fills the frame again, centered">reset</button></span>
+    <span class="all muted">Double-click the GIF to crop: drag to move the picture inside its frame, scroll or pinch to zoom, drag the frame's edges to crop them. Double-click again or Esc to finish.</span>
     <label class="lbl" for="bg">Background</label><input id="bg" type="color" value="#ffffff"><span></span>
   </section>
 
@@ -215,7 +218,9 @@ const S = {
   sel: null,             // selected frame
   playing: true, boomerang: false,
   useLayout: false, layout: null,  // { img, w, h, name, hole }
-  xf: { x: 0, y: 0, s: 1 },        // GIF placement inside the layout, layout px
+  fr: { x: 0, y: 0, w: 1, h: 1 },  // GIF frame inside the layout, layout px; the GIF is clipped to it
+  ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
+  crop: false,                     // crop mode: gestures move the picture, not the frame
   bg: '#ffffff', delay: DEFAULT_DELAY,
 };
 let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
@@ -223,7 +228,7 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.2.1 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.3 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
@@ -276,7 +281,7 @@ function addFrame(bmp, name, delay) {
   const f = { id: ++uid, bmp, w: bmp.width, h: bmp.height, name, delay: clampDelay(delay) };
   f.thumb = makeThumb(bmp);
   S.frames.push(f);
-  if (!S.box) { S.box = { w: f.w, h: f.h }; if (S.layout) place('fill'); }
+  if (!S.box) { S.box = { w: f.w, h: f.h }; S.ct = { x: 0, y: 0, s: 1 }; if (S.layout) place('fill'); }
 }
 
 // ---- adding files ----
@@ -430,31 +435,64 @@ async function setLayout(file) {
 function place(mode) {
   if (!S.layout || !S.box) return;
   const L = S.layout, t = L.hole || { x: 0, y: 0, w: L.w, h: L.h }, b = S.box;
-  let s = S.xf.s;
-  if (mode === 'fill') s = Math.max(t.w / b.w, t.h / b.h);
-  if (mode === 'fit') s = Math.min(t.w / b.w, t.h / b.h);
-  S.xf = { s, x: t.x + (t.w - b.w * s) / 2, y: t.y + (t.h - b.h * s) / 2 };
+  if (mode === 'center') { const F = S.fr; S.fr = { ...F, x: t.x + (t.w - F.w) / 2, y: t.y + (t.h - F.h) / 2 }; }
+  else if (mode === 'fill') { S.fr = { ...t }; coverFrame(); }  // frame = opening, picture covers it
+  else {
+    const k = Math.min(t.w / b.w, t.h / b.h);
+    S.fr = { x: t.x + (t.w - b.w * k) / 2, y: t.y + (t.h - b.h * k) / 2, w: b.w * k, h: b.h * k };
+    S.ct = { x: 0, y: 0, s: 1 };
+  }
   dirty = true; syncScale();
 }
 const layoutOn = () => !!(S.useLayout && S.layout);
 function scene() { return layoutOn() ? { w: S.layout.w, h: S.layout.h } : (S.box || { w: 640, h: 360 }); }
-function gifRect() {
+// frame: where the GIF sits and is clipped. Without a layout it is the whole output.
+function frameRect() {
   if (!S.box) return null;
-  if (!layoutOn()) return { x: 0, y: 0, w: S.box.w, h: S.box.h };
-  return { x: S.xf.x, y: S.xf.y, w: S.box.w * S.xf.s, h: S.box.h * S.xf.s };
+  return layoutOn() ? { ...S.fr } : { x: 0, y: 0, w: S.box.w, h: S.box.h };
+}
+// picture: the content box inside the frame, moved and zoomed in crop mode
+function contentRect(F = frameRect()) {
+  if (!F) return null;
+  const w = S.ct.s * F.w;
+  return { x: F.x + S.ct.x * F.w, y: F.y + S.ct.y * F.w, w, h: w * S.box.h / S.box.w };
+}
+function setContent(C, F = frameRect()) { S.ct = { x: (C.x - F.x) / F.w, y: (C.y - F.y) / F.w, s: C.w / F.w }; }
+const cropping = () => !!(S.crop && S.box);
+// gestures act on the frame normally, on the picture in crop mode
+function target() { return cropping() ? contentRect() : frameRect(); }
+function setTarget(r) { if (cropping()) setContent(r); else S.fr = r; dirty = true; syncScale(); }
+function scaleRect(r, p, f) { return { x: p.x - (p.x - r.x) * f, y: p.y - (p.y - r.y) * f, w: r.w * f, h: r.h * f }; }
+function clampScale(r, f) {  // keep sizes sensible: frame 2%–5000% of the source, picture 10%–2000% of the frame
+  const lo = cropping() ? 0.1 * frameRect().w : 0.02 * S.box.w, hi = cropping() ? 20 * frameRect().w : 50 * S.box.w;
+  return Math.min(hi, Math.max(lo, r.w * f)) / r.w;
 }
 function outSize() {
   const sc = scene(), k = Math.min(1, MAX_WIDTH / sc.w);
   return { w: Math.max(1, Math.round(sc.w * k)), h: Math.max(1, Math.round(sc.h * k)) };
 }
 function scaleAround(p, f) {
-  const s = Math.min(50, Math.max(0.02, S.xf.s * f)); f = s / S.xf.s;
-  S.xf = { s, x: p.x - (p.x - S.xf.x) * f, y: p.y - (p.y - S.xf.y) * f };
+  const r = target(); if (!r) return;
+  setTarget(scaleRect(r, p, clampScale(r, f)));
+}
+function setCrop(on) {
+  S.crop = !!on && !!S.box;
+  $('#bCrop').classList.toggle('on', S.crop);
+  canvas.classList.toggle('layout', layoutOn() || S.crop);
+  if (!layoutOn() && !S.crop) canvas.style.cursor = '';
   dirty = true; syncScale();
 }
+function coverFrame() {  // picture fills the frame, centered, cropping what sticks out
+  const F = frameRect(); if (!F) return;
+  const w = Math.max(F.w, F.h * S.box.w / S.box.h), h = w * S.box.h / S.box.w;
+  setContent({ x: F.x + (F.w - w) / 2, y: F.y + (F.h - h) / 2, w, h }, F);
+}
+function resetCrop() { coverFrame(); dirty = true; syncScale(); }
 function syncScale() {
-  $('#scale').value = Math.log2(S.xf.s);
-  $('#scaleOut').textContent = Math.round(S.xf.s * 100) + '%';
+  const v = !S.box ? 1 : cropping() ? S.ct.s : frameRect().w / S.box.w;
+  $('#scaleLbl').textContent = cropping() ? 'Zoom' : 'Size';
+  $('#scale').value = Math.log2(v);
+  $('#scaleOut').textContent = Math.round(v * 100) + '%';
 }
 
 // ---- drawing (shared by preview and export) ----
@@ -464,26 +502,35 @@ function drawScene(g, W, H, f, preview) {
   g.fillStyle = S.bg; g.fillRect(0, 0, W, H);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.setTransform(k, 0, 0, k, 0, 0);
-  const r = gifRect();
-  if (f && r) {
-    const s = Math.min(r.w / f.w, r.h / f.h);
-    g.drawImage(f.bmp, r.x + (r.w - f.w * s) / 2, r.y + (r.h - f.h * s) / 2, f.w * s, f.h * s);
+  const F = frameRect(), C = contentRect(F);
+  if (f && F) {
+    const fit = () => { const s = Math.min(C.w / f.w, C.h / f.h); g.drawImage(f.bmp, C.x + (C.w - f.w * s) / 2, C.y + (C.h - f.h * s) / 2, f.w * s, f.h * s); };
+    if (preview && S.crop) { g.globalAlpha = 0.3; fit(); g.globalAlpha = 1; }  // the cropped-away parts, faint
+    g.save(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip(); fit(); g.restore();
   }
   if (layoutOn()) {
-    g.globalAlpha = preview && dragView ? 0.45 : 1;
+    g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
     g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
     g.globalAlpha = 1;
-    if (preview && r) {  // GIF bounds and corner handles, preview only
-      const px = devicePixelRatio / k;  // one css px in scene units
-      g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
-      g.lineWidth = 1.5 * px; g.setLineDash([6 * px, 4 * px]);
-      g.strokeRect(r.x, r.y, r.w, r.h); g.setLineDash([]);
-      g.fillStyle = g.strokeStyle; const hs = 8 * px;
-      for (const [x, y] of corners(r)) g.fillRect(x - hs / 2, y - hs / 2, hs, hs);
+  }
+  if (preview && F && (layoutOn() || S.crop)) {  // frame, picture and handles, preview only
+    const px = devicePixelRatio / k;  // one css px in scene units
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    g.lineWidth = 1.5 * px;
+    if (S.crop) {
+      g.strokeStyle = '#fff'; g.setLineDash([4 * px, 4 * px]); g.strokeRect(C.x, C.y, C.w, C.h);
+      g.strokeStyle = accent; g.setLineDash([]); g.strokeRect(F.x, F.y, F.w, F.h);
+    } else {
+      g.strokeStyle = accent; g.setLineDash([6 * px, 4 * px]); g.strokeRect(F.x, F.y, F.w, F.h); g.setLineDash([]);
     }
+    g.fillStyle = accent; const hs = 8 * px;
+    for (const [x, y] of handles(F)) g.fillRect(x - hs / 2, y - hs / 2, hs, hs);
   }
 }
+// corner handles resize the frame; in crop mode (with a layout) edge handles crop it
 const corners = r => [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]];
+const edges = r => [[r.x + r.w / 2, r.y], [r.x + r.w, r.y + r.h / 2], [r.x + r.w / 2, r.y + r.h], [r.x, r.y + r.h / 2]];
+const handles = r => !layoutOn() ? [] : S.crop ? corners(r).concat(edges(r)) : corners(r);
 
 // ---- preview ----
 const canvas = $('#preview'), pctx = canvas.getContext('2d');
@@ -524,60 +571,71 @@ requestAnimationFrame(loop);
 function setPlaying(p) { S.playing = p; acc = 0; $('#bPlay').textContent = p ? 'Pause' : 'Play'; $('#bPlay').classList.toggle('on', !p); }
 function showFrame(f) { setPlaying(false); S.sel = f; const i = seq.indexOf(f); if (i >= 0) pos = i; dirty = true; renderSel(); }
 
-// dragging the GIF under the layout
+// dragging: normally moves and resizes the frame (with a layout); in crop mode moves and zooms the picture
 const ptrs = new Map(); let gesture = null;
+const interactive = () => !!S.box && (layoutOn() || S.crop);
 function toScene(e) {
   const r = canvas.getBoundingClientRect(), sc = scene();
   return { x: (e.clientX - r.left) / r.width * sc.w, y: (e.clientY - r.top) / r.height * sc.h };
 }
 const cssToScene = () => scene().w / canvas.getBoundingClientRect().width;
-function hitCorner(p) {
-  const r = gifRect(); if (!r) return null; const tol = 12 * cssToScene();
-  const i = corners(r).findIndex(([x, y]) => Math.abs(p.x - x) < tol && Math.abs(p.y - y) < tol);
+function hitHandle(p) {  // index into handles(): 0–3 corners (tl, tr, bl, br), 4–7 edges (t, r, b, l)
+  const F = frameRect(); if (!F) return null; const tol = 12 * cssToScene();
+  const i = handles(F).findIndex(([x, y]) => Math.abs(p.x - x) < tol && Math.abs(p.y - y) < tol);
   return i < 0 ? null : i;
 }
+const HANDLE_CURSOR = ['nwse-resize', 'nesw-resize', 'nesw-resize', 'nwse-resize', 'ns-resize', 'ew-resize', 'ns-resize', 'ew-resize'];
 function startGesture() {
   const pts = [...ptrs.values()];
   if (pts.length >= 2) {
     const [a, b] = pts;
-    gesture = { type: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: S.xf.s, x0: S.xf.x, y0: S.xf.y,
-      c0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+    gesture = { type: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, r0: target(), c0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
   } else if (pts.length === 1) {
-    const p = pts[0], c = hitCorner(p), r = gifRect();
-    gesture = c === null ? { type: 'move', p0: p, x0: S.xf.x, y0: S.xf.y }
-      : { type: 'resize', left: c % 2 === 0, top: c < 2, ax: c % 2 === 0 ? r.x + r.w : r.x, ay: c < 2 ? r.y + r.h : r.y };
+    const p = pts[0], h = hitHandle(p), F = frameRect();
+    if (h === null) gesture = { type: 'move', p0: p, r0: target() };
+    else if (S.crop) {  // crop: move the chosen frame edges, the picture stays where it is
+      const side = [['l', 't'], ['r', 't'], ['l', 'b'], ['r', 'b'], ['t'], ['r'], ['b'], ['l']][h];
+      gesture = { type: 'crop', side, F0: F, C0: contentRect(F) };
+    } else gesture = { type: 'resize', left: h % 2 === 0, top: h < 2, ax: h % 2 === 0 ? F.x + F.w : F.x, ay: h < 2 ? F.y + F.h : F.y };
   } else gesture = null;
 }
 canvas.addEventListener('pointerdown', e => {
-  if (!layoutOn() || !S.box) return;
+  if (!interactive()) return;
   canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, toScene(e));
   startGesture(); dragView = true; dirty = true;
 });
 canvas.addEventListener('pointermove', e => {
-  if (!layoutOn()) return;
+  if (!interactive()) return;
   if (!ptrs.has(e.pointerId)) {  // hover cursor
-    canvas.style.cursor = hitCorner(toScene(e)) === null ? 'move' : 'nwse-resize';
-    const c = hitCorner(toScene(e)); if (c === 1 || c === 2) canvas.style.cursor = 'nesw-resize';
+    const h = hitHandle(toScene(e));
+    canvas.style.cursor = h === null ? 'move' : HANDLE_CURSOR[h];
     return;
   }
   ptrs.set(e.pointerId, toScene(e));
   const g = gesture; if (!g) return;
-  const b = S.box;
+  const p = ptrs.get(e.pointerId);
   if (g.type === 'move') {
-    const p = ptrs.get(e.pointerId);
-    S.xf = { ...S.xf, x: g.x0 + p.x - g.p0.x, y: g.y0 + p.y - g.p0.y };
+    setTarget({ ...g.r0, x: g.r0.x + p.x - g.p0.x, y: g.r0.y + p.y - g.p0.y });
   } else if (g.type === 'resize') {
-    const p = ptrs.get(e.pointerId);
-    const w = Math.max(8 * cssToScene(), Math.max(Math.abs(p.x - g.ax), Math.abs(p.y - g.ay) * b.w / b.h));
-    const s = w / b.w, h = b.h * s;
-    S.xf = { s, x: g.left ? g.ax - w : g.ax, y: g.top ? g.ay - h : g.ay };
-    syncScale();
+    const F = frameRect();
+    const w = Math.max(8 * cssToScene(), Math.max(Math.abs(p.x - g.ax), Math.abs(p.y - g.ay) * F.w / F.h)), h = w * F.h / F.w;
+    setTarget({ x: g.left ? g.ax - w : g.ax, y: g.top ? g.ay - h : g.ay, w, h });
+  } else if (g.type === 'crop') {
+    const min = 16 * cssToScene(), F0 = g.F0;
+    let x0 = F0.x, y0 = F0.y, x1 = F0.x + F0.w, y1 = F0.y + F0.h;
+    for (const sd of g.side) {
+      if (sd === 'l') x0 = Math.min(p.x, x1 - min);
+      if (sd === 'r') x1 = Math.max(p.x, x0 + min);
+      if (sd === 't') y0 = Math.min(p.y, y1 - min);
+      if (sd === 'b') y1 = Math.max(p.y, y0 + min);
+    }
+    S.fr = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    setContent(g.C0); dirty = true; syncScale();
   } else if (g.type === 'pinch') {
     const [a, c] = [...ptrs.values()];
-    const f = (Math.hypot(a.x - c.x, a.y - c.y) || 1) / g.d0, m = { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 };
-    const s = Math.min(50, Math.max(0.02, g.s0 * f)), k = s / g.s0;
-    S.xf = { s, x: m.x - (g.c0.x - g.x0) * k, y: m.y - (g.c0.y - g.y0) * k };
-    syncScale();
+    const m = { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 };
+    const r = { ...g.r0, x: g.r0.x + m.x - g.c0.x, y: g.r0.y + m.y - g.c0.y };
+    setTarget(scaleRect(r, m, clampScale(g.r0, (Math.hypot(a.x - c.x, a.y - c.y) || 1) / g.d0)));
   }
   dirty = true;
 });
@@ -589,10 +647,11 @@ const endPtr = e => {
 canvas.addEventListener('pointerup', endPtr);
 canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('wheel', e => {
-  if (!layoutOn() || !S.box) return;
+  if (!interactive()) return;
   e.preventDefault();
   scaleAround(toScene(e), Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)));
 }, { passive: false });
+canvas.addEventListener('dblclick', e => { if (S.box) { e.preventDefault(); setCrop(!S.crop); } });
 
 // ---- filmstrip ----
 let dragFrom = null;
@@ -647,14 +706,14 @@ function removeFrame(f) {
 
 // ---- state changes ----
 function changed() {
-  if (!S.frames.length) { S.box = null; S.sel = null; }
+  if (!S.frames.length) { S.box = null; S.sel = null; S.crop = false; $('#bCrop').classList.remove('on'); }
   const cur = seq[pos];
   seq = S.boomerang && S.frames.length > 2 ? S.frames.concat(S.frames.slice(1, -1).reverse()) : S.frames.slice();
   pos = Math.max(0, seq.indexOf(cur)); acc = 0;
   $('#empty').classList.toggle('hidden', S.frames.length > 0);
   canvas.classList.toggle('hidden', !S.frames.length);
-  canvas.classList.toggle('layout', layoutOn());
-  if (!layoutOn()) canvas.style.cursor = '';
+  canvas.classList.toggle('layout', layoutOn() || S.crop);
+  if (!layoutOn() && !S.crop) canvas.style.cursor = '';
   $('#layoutBody').classList.toggle('off', !S.useLayout);
   $('#layoutName').textContent = S.layout ? `${S.layout.name} · ${S.layout.w}×${S.layout.h}` : '';
   $('#bExport').disabled = !S.frames.length;
@@ -697,9 +756,12 @@ $('#useLayout').onchange = e => {
 $('#bFill').onclick = () => place('fill');
 $('#bFit').onclick = () => place('fit');
 $('#bCenter').onclick = () => place('center');
+$('#bCrop').onclick = () => setCrop(!S.crop);
+$('#bCropReset').onclick = resetCrop;
 $('#scale').oninput = () => {
-  const r = gifRect(); if (!r || !layoutOn()) return;
-  scaleAround({ x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / S.xf.s);
+  const r = target(); if (!r || !(layoutOn() || S.crop)) return;
+  const now = cropping() ? S.ct.s : r.w / S.box.w;
+  scaleAround(cropping() ? (F => ({ x: F.x + F.w / 2, y: F.y + F.h / 2 }))(frameRect()) : { x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / now);
 };
 $('#bg').oninput = e => { S.bg = e.target.value; dirty = true; };
 
@@ -709,10 +771,11 @@ addEventListener('keydown', e => {
   else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && seq.length) {
     e.preventDefault();
     const step = e.key === 'ArrowRight' ? 1 : -1;
-    if (e.shiftKey && layoutOn()) { S.xf.x += step * 10; dirty = true; return; }
+    if (e.shiftKey && interactive()) { const r = target(); setTarget({ ...r, x: r.x + step * 10 * cssToScene() }); return; }
     setPlaying(false); pos = (pos + step + seq.length) % seq.length; S.sel = seq[pos]; dirty = true; renderSel();
   }
-  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && layoutOn()) { e.preventDefault(); S.xf.y += (e.key === 'ArrowDown' ? 10 : -10); dirty = true; }
+  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && interactive()) { e.preventDefault(); const r = target(); setTarget({ ...r, y: r.y + (e.key === 'ArrowDown' ? 10 : -10) * cssToScene() }); }
+  else if (e.key === 'Escape' && S.crop) setCrop(false);
   else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); removeFrame(S.sel); }
 });
 

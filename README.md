@@ -8,6 +8,7 @@ A browser-based GIF maker. Drop images or a video into the page, arrange the fra
 - **Filmstrip:** drag frames to reorder, × to remove, set each frame's duration in ms.
 - **Boomerang:** plays the frames forward, then backward, without repeating the first and last frame.
 - **Place into layout:** load a PNG or PDF with a transparent opening. A PDF is converted in the browser with [pdf.js](https://github.com/mozilla/pdf.js) (page 1, 2000 px wide); areas with nothing on them stay transparent, so leave the opening empty instead of filling it white. The layout sits on top of the GIF, so title, name and logo stay visible. Drag the preview to move the GIF, drag its corners or scroll to resize. The export is the full layout, animated.
+- **Crop:** double-click the preview (or press *crop*) to move and zoom the picture inside its frame; with a layout, drag the frame's edges to crop them. Double-click again or Esc to finish. Works with and without a layout.
 - **Export:** GIF only, encoded in the browser with [gif.js](https://github.com/jnordberg/gif.js).
 
 Everything runs locally in your browser; files are not uploaded anywhere. It is a single `index.html` with no build step; open it from disk or from GitHub Pages. Export and PDF layouts need internet to load gif.js and pdf.js from jsDelivr.
