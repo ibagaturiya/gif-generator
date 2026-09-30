@@ -1,0 +1,779 @@
+<!doctype html>
+<!-- GIF Generator. Copyright (C) 2026 Ivan Bagaturiya.
+     Licensed under the GNU Affero General Public License v3.0 or later, see LICENSE.
+     Source: https://github.com/ibagaturiya/gif-generator -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GIF Generator</title>
+<style>
+  :root {
+    --bg: #1b1b1a; --fg: #e8e6e1; --muted: #8d8a83; --line: #3a3936;
+    --panel: rgba(27,27,26,.82); --accent: #d9442b;
+  }
+  :root[data-theme="light"] {
+    --bg: #eeece7; --fg: #1d1d1b; --muted: #6f6c66; --line: #cfccc4;
+    --panel: rgba(238,236,231,.86); --accent: #c23a22;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+  body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px; padding: 22px 16px 16px; overflow: hidden; }
+  .ui { background: var(--panel); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+  h1 { font-size: 13px; font-weight: 600; margin: 0 0 6px; letter-spacing: .02em; }
+  button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 9px; cursor: pointer; }
+  button:hover { border-color: var(--fg); }
+  button.on { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; border-color: var(--line); }
+  button.primary { border-color: var(--accent); color: var(--accent); width: 100%; padding: 6px 9px; }
+  input[type=number] { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 2px 5px; width: 5.5em; font-variant-numeric: tabular-nums; }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  input[type=range], input[type=checkbox] { accent-color: var(--accent); }
+  input[type=color] { width: 36px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+  #version { position: fixed; top: 4px; right: 18px; font-size: 10px; color: var(--muted); letter-spacing: .02em; pointer-events: none; }
+  #version a { color: inherit; pointer-events: auto; }
+
+  #stage { grid-column: 1; grid-row: 1; position: relative; min-height: 0; display: grid; place-items: center; }
+  #preview { display: block; touch-action: none; border: 1px solid var(--line); }
+  #preview.layout { cursor: move; }
+  #empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 10px; padding: 16px; }
+  #empty strong { display: block; color: var(--fg); font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  #drop { position: fixed; inset: 12px; border: 2px dashed var(--accent); border-radius: 10px; display: none; pointer-events: none; z-index: 5; }
+  body.dragging #drop { display: block; }
+
+  #side { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 12px; overflow: auto; min-height: 0; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .form { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; }
+  .form > label:first-child, .form .lbl { color: var(--muted); }
+  .form .wide { grid-column: 2 / 4; }
+  .form .all { grid-column: 1 / -1; }
+  .form input[type=range] { width: 100%; }
+  output { font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; }
+  #info { color: var(--muted); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+  .fold { cursor: pointer; user-select: none; }
+  .fold::after { content: ' ▾'; color: var(--muted); }
+  .folded .fold::after { content: ' ▸'; }
+  .folded > :not(.fold) { display: none !important; }
+  .form .fold { grid-column: 1 / -1; margin: 0; }
+  #layoutBox.droptarget { border-color: var(--accent); }
+  #layoutBody { display: contents; }
+  #layoutBody.off > :not(.keep) { opacity: .45; pointer-events: none; }
+  #prog { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  #prog div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  #result { font-variant-numeric: tabular-nums; word-break: break-all; }
+  #result.err { color: var(--accent); }
+
+  #strip { grid-column: 1; grid-row: 2; min-width: 0; }
+  #strip .head { display: flex; justify-content: space-between; gap: 10px; }
+  #tiles { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; min-height: 108px; }
+  #tiles:empty::before { content: 'Frames appear here'; color: var(--muted); align-self: center; padding-left: 4px; }
+  .tile { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 3px;
+    border: 1px solid transparent; border-radius: 5px; position: relative; }
+  .tile.sel { border-color: var(--line); }
+  .tile.cur .thumb { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tile.before { box-shadow: -3px 0 0 var(--accent); }
+  .tile.after { box-shadow: 3px 0 0 var(--accent); }
+  .tile.dragging { opacity: .35; }
+  .thumb { position: relative; height: 64px; cursor: grab; border-radius: 2px; background: var(--line); }
+  .thumb canvas { display: block; height: 64px; border-radius: 2px; }
+  .thumb .n { position: absolute; left: 3px; top: 2px; font-size: 10px; color: #fff; text-shadow: 0 0 3px #000; font-variant-numeric: tabular-nums; }
+  .thumb .del { position: absolute; right: 2px; top: 2px; padding: 0 5px; line-height: 16px; font-size: 13px;
+    background: rgba(27,27,26,.75); color: #e8e6e1; border-color: transparent; }
+  .thumb .del:hover { color: var(--accent); }
+  .tile label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .tile input[type=number] { width: 4.6em; font-size: 12px; }
+  .tile .mv button { padding: 0 8px; }
+
+  #dialog { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.35); z-index: 10; }
+  #dialog .ui { width: min(360px, calc(100vw - 32px)); background: var(--bg); }
+  #vErr { color: var(--accent); }
+
+  .touch-only { display: none; }
+  @media (pointer: coarse) {
+    .touch-only { display: revert; }
+    .desk-only { display: none; }
+  }
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    body { display: flex; flex-direction: column; overflow: auto; padding: 22px 10px 10px; font-size: 14px; }
+    #stage { height: 55vh; flex: none; }
+    #strip { order: 2; }
+    #side { order: 3; overflow: visible; }
+    #version { right: 10px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
+</head>
+<body>
+<div id="version"><span id="versionText">v0.1</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<div id="drop"></div>
+
+<main id="stage">
+  <canvas id="preview" class="hidden"></canvas>
+  <div id="empty"><div>
+    <strong>Drop images or a video here</strong>
+    .png .jpg .webp .gif · .mp4 .mov .webm<br><br>
+    <button id="pick">or choose files…</button>
+    <div class="desk-only" style="margin-top:8px">or paste images: copy them, then ⌘V here</div>
+  </div></div>
+</main>
+
+<aside id="side">
+  <section class="ui">
+    <h1>GIF Generator</h1>
+    <div id="info">No frames yet</div>
+    <div class="row">
+      <button id="bAdd" title="Add images or a video">+ Add</button>
+      <button id="bPlay" title="Space">Pause</button>
+      <button id="bBoom" title="Append the frames in reverse, without repeating the end frames">Boomerang</button>
+      <button id="bTheme">Light</button>
+    </div>
+  </section>
+
+  <section class="ui form" id="timing">
+    <h1 class="fold">Timing</h1>
+    <label for="defDelay">Duration</label>
+    <span class="row"><input id="defDelay" type="number" min="20" step="10"> ms</span>
+    <button id="bApply" title="Set every frame to this duration">all</button>
+    <span class="all muted">New images get this duration. Video frames get 1000 / fps.</span>
+    <label>Order</label>
+    <span class="row wide"><button id="bReverse">reverse</button><button id="bClear">remove all</button></span>
+  </section>
+
+  <section class="ui form" id="layoutBox">
+    <h1 class="fold">Layout</h1>
+    <label class="all"><input id="useLayout" type="checkbox"> Place into layout</label>
+    <div id="layoutBody" class="off">
+      <label class="lbl keep">File</label>
+      <span class="wide keep row"><button id="bLayout">choose PNG…</button><span id="layoutName" class="muted"></span></span>
+      <label class="lbl" for="scale">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
+      <label class="lbl">Place</label>
+      <span class="wide row"><button id="bFill" title="Cover the transparent opening of the layout">fill opening</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></span>
+      <span class="all muted">The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</span>
+    </div>
+    <label class="lbl" for="bg">Background</label><input id="bg" type="color" value="#ffffff"><span></span>
+  </section>
+
+  <section class="ui form" id="exportBox">
+    <h1 class="fold">Export</h1>
+    <span class="all muted" id="exportInfo"></span>
+    <button id="bExport" class="primary all" disabled>Export GIF</button>
+    <div id="prog" class="all hidden"><div></div></div>
+    <span id="result" class="all muted"></span>
+  </section>
+</aside>
+
+<section id="strip" class="ui">
+  <div class="head"><h1>Filmstrip</h1><span class="muted desk-only">drag to reorder · click to show · Del removes</span></div>
+  <div id="tiles"></div>
+</section>
+
+<div id="dialog" class="hidden"><div class="ui form">
+  <h1 class="all" id="vTitle">Video</h1>
+  <span class="all muted" id="vMeta"></span>
+  <label for="vFps">Frames/s</label><input id="vFps" type="number" min="1" max="60" step="1"><span></span>
+  <label for="vFrom">From</label><span class="row wide"><input id="vFrom" type="number" min="0" step=".1"> s</span>
+  <label for="vTo">To</label><span class="row wide"><input id="vTo" type="number" min="0" step=".1"> s</span>
+  <span class="all" id="vCount"></span>
+  <span class="all" id="vErr"></span>
+  <div id="vProg" class="all hidden" style="height:3px;background:var(--line);border-radius:2px;overflow:hidden"><div style="height:100%;width:0;background:var(--accent)"></div></div>
+  <span class="all row" style="justify-content:flex-end"><button id="vCancel">cancel</button><button id="vGo" class="on">extract frames</button></span>
+</div></div>
+
+<input id="file" type="file" multiple accept="image/*,video/*" hidden>
+<input id="layoutFile" type="file" accept="image/png,image/webp,image/*" hidden>
+
+<script>
+// ---- Quality. Start small for fast test exports, tune up later. ----
+const MAX_WIDTH = 480;    // export width in px; larger sources (and the layout) are scaled down to this
+const COLORS = 32;        // palette size, 2–256, one palette shared by all frames
+const DITHER = false;     // false, true (= Floyd–Steinberg), or a gif.js mode: 'FalseFloydSteinberg', 'Stucki', 'Atkinson'
+
+// ---- Other limits ----
+const SOURCE_MAX_WIDTH = 960;  // frames are kept at most this wide in memory
+const MAX_VIDEO_FRAMES = 300;  // per extraction
+const DEFAULT_DELAY = 100;     // ms, for images
+const DEFAULT_FPS = 10;        // video extraction
+const MIN_DELAY = 20;          // GIF stores 1/100 s; browsers play anything below 20 ms at 100 ms
+const WORKERS = 2;             // gif.js encoder workers
+const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
+
+const $ = s => document.querySelector(s);
+const S = {
+  frames: [],            // { id, bmp, w, h, name, delay, thumb }
+  box: null,             // content size in px, fixed by the first frame
+  sel: null,             // selected frame
+  playing: true, boomerang: false,
+  useLayout: false, layout: null,  // { img, w, h, name, hole }
+  xf: { x: 0, y: 0, s: 1 },        // GIF placement inside the layout, layout px
+  bg: '#ffffff', delay: DEFAULT_DELAY,
+};
+let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
+
+// ---- version, theme ----
+(() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
+  const p = n => String(n).padStart(2, '0');
+  $('#versionText').textContent = `v0.1 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $('#bTheme').textContent = t === 'dark' ? 'Light' : 'Dark';
+  store.set('gifgen.theme', t);
+}
+applyTheme(store.get('gifgen.theme') || 'dark');
+$('#bTheme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+for (const h of document.querySelectorAll('.fold')) h.onclick = () => h.parentElement.classList.toggle('folded');
+
+// ---- helpers ----
+const isVideo = f => f.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name);
+const isImage = f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(f.name);
+const clampDelay = v => Math.max(MIN_DELAY, Math.round(+v || DEFAULT_DELAY));
+const nextPaint = () => new Promise(r => setTimeout(r, 0));
+
+async function decodeImage(file) {
+  try { return await createImageBitmap(file); }
+  catch {  // e.g. SVG: go through an <img>
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image(); img.src = url; await img.decode();
+      return await createImageBitmap(img);
+    } finally { URL.revokeObjectURL(url); }
+  }
+}
+// scale a drawable down to SOURCE_MAX_WIDTH and return an ImageBitmap
+async function shrink(src, w, h) {
+  if (w <= SOURCE_MAX_WIDTH && src instanceof ImageBitmap) return src;
+  const k = Math.min(1, SOURCE_MAX_WIDTH / w);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+  g.drawImage(src, 0, 0, c.width, c.height);
+  if (src instanceof ImageBitmap) src.close();
+  return createImageBitmap(c);
+}
+function makeThumb(bmp) {
+  const c = document.createElement('canvas');
+  const h = 64 * 2, w = Math.max(24, Math.min(240, Math.round(bmp.width / bmp.height * h)));
+  c.width = w; c.height = h; c.style.width = w / 2 + 'px';
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+  const s = Math.min(w / bmp.width, h / bmp.height);
+  g.drawImage(bmp, (w - bmp.width * s) / 2, (h - bmp.height * s) / 2, bmp.width * s, bmp.height * s);
+  return c;
+}
+function addFrame(bmp, name, delay) {
+  const f = { id: ++uid, bmp, w: bmp.width, h: bmp.height, name, delay: clampDelay(delay) };
+  f.thumb = makeThumb(bmp);
+  S.frames.push(f);
+  if (!S.box) { S.box = { w: f.w, h: f.h }; if (S.layout) place('fill'); }
+}
+
+// ---- adding files ----
+async function handleFiles(list) {
+  const files = [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const videos = [], skipped = [];
+  for (const f of files) {
+    if (isVideo(f)) videos.push(f);
+    else if (isImage(f)) {
+      try { const b = await decodeImage(f); addFrame(await shrink(b, b.width, b.height), f.name, S.delay); }
+      catch (err) { console.warn(err); skipped.push(f.name); }
+    } else skipped.push(f.name);
+  }
+  changed();
+  if (skipped.length) say('Skipped: ' + skipped.join(', '), true);
+  for (const v of videos) await videoDialog(v);
+}
+
+// ---- video: frames via <video> + canvas ----
+function once(el, ok, bad = 'error') {
+  return new Promise((res, rej) => {
+    const a = () => { off(); res(); }, b = () => { off(); rej(el.error || new Error(bad)); };
+    const off = () => { el.removeEventListener(ok, a); el.removeEventListener(bad, b); };
+    el.addEventListener(ok, a); el.addEventListener(bad, b);
+  });
+}
+function seek(v, t) {
+  if (Math.abs(v.currentTime - t) < 1e-4 && v.readyState >= 2) return Promise.resolve();
+  const p = Promise.race([once(v, 'seeked'), new Promise(r => setTimeout(r, 4000))]);
+  v.currentTime = t;
+  return p;
+}
+function videoDialog(file) {
+  return new Promise(async done => {
+    const dlg = $('#dialog'), url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    let cancelled = false, busy = false;
+    const close = () => { cancelled = true; dlg.classList.add('hidden'); v.removeAttribute('src'); v.load(); URL.revokeObjectURL(url); done(); };
+    $('#vTitle').textContent = file.name;
+    $('#vMeta').textContent = 'Reading video…'; $('#vErr').textContent = ''; $('#vCount').textContent = '';
+    $('#vGo').disabled = true; $('#vProg').classList.add('hidden');
+    $('#vCancel').onclick = close;
+    dlg.classList.remove('hidden');
+    try { const ready = once(v, 'loadeddata'); v.src = url; await ready; }
+    catch (err) { $('#vMeta').textContent = ''; $('#vErr').textContent = 'This browser cannot play that video (' + (err.message || 'unsupported format') + '). Try an .mp4 (H.264).'; return; }
+    const dur = v.duration;
+    if (!isFinite(dur) || dur <= 0) { $('#vErr').textContent = 'Cannot read the length of this video.'; return; }
+    $('#vMeta').textContent = `${v.videoWidth}×${v.videoHeight} · ${dur.toFixed(2)} s`;
+    $('#vFps').value = DEFAULT_FPS; $('#vFrom').value = 0; $('#vTo').value = +dur.toFixed(2);
+    const params = () => {
+      const fps = Math.min(60, Math.max(1, +$('#vFps').value || DEFAULT_FPS));
+      const from = Math.min(Math.max(0, +$('#vFrom').value || 0), dur);
+      const to = Math.min(Math.max(from, +$('#vTo').value || dur), dur);
+      return { fps, from, to, n: Math.max(1, Math.floor((to - from) * fps + 1e-6)) };
+    };
+    const update = () => {
+      if (busy) return;
+      const { fps, n } = params();
+      const over = n > MAX_VIDEO_FRAMES;
+      $('#vCount').textContent = `→ ${n} frames at ${Math.round(1000 / fps)} ms`;
+      $('#vErr').textContent = over ? `More than ${MAX_VIDEO_FRAMES} frames. Lower the fps or shorten the range.` : '';
+      $('#vGo').disabled = over;
+    };
+    for (const id of ['#vFps', '#vFrom', '#vTo']) $(id).oninput = update;
+    update();
+    $('#vGo').onclick = async () => {
+      const { fps, from, n } = params();
+      busy = true; $('#vGo').disabled = true;
+      for (const id of ['#vFps', '#vFrom', '#vTo']) $(id).disabled = true;
+      $('#vProg').classList.remove('hidden');
+      const k = Math.min(1, SOURCE_MAX_WIDTH / v.videoWidth);
+      const c = document.createElement('canvas');
+      c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+      const base = file.name.replace(/\.[^.]+$/, '');
+      try {
+        for (let i = 0; i < n && !cancelled; i++) {
+          await seek(v, Math.min(from + i / fps, dur - 0.001));
+          g.drawImage(v, 0, 0, c.width, c.height);
+          addFrame(await createImageBitmap(c), `${base} #${i + 1}`, 1000 / fps);
+          $('#vProg div').style.width = ((i + 1) / n * 100) + '%';
+          $('#vCount').textContent = `Extracting ${i + 1} / ${n}…`;
+          if (i % 5 === 4) changed();
+        }
+      } catch (err) { console.warn(err); say('Video extraction stopped: ' + err.message, true); }
+      for (const id of ['#vFps', '#vFrom', '#vTo']) $(id).disabled = false;
+      changed(); close();
+    };
+  });
+}
+
+// ---- layout ----
+function findHole(img) {  // bounding box of the transparent area, in layout px
+  const k = Math.min(1, 400 / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] < 128) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return null;
+  return { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k };
+}
+async function setLayout(file) {
+  try {
+    const img = await decodeImage(file);
+    S.layout = { img, w: img.width, h: img.height, name: file.name, hole: findHole(img) };
+    S.useLayout = true; $('#useLayout').checked = true;
+    place('fill'); changed();
+    if (!S.layout.hole) say('This layout has no transparent area, so the GIF is hidden under it. Use a PNG with a transparent opening.', true);
+  } catch (err) { console.warn(err); say('Could not read that layout image.', true); }
+}
+function place(mode) {
+  if (!S.layout || !S.box) return;
+  const L = S.layout, t = L.hole || { x: 0, y: 0, w: L.w, h: L.h }, b = S.box;
+  let s = S.xf.s;
+  if (mode === 'fill') s = Math.max(t.w / b.w, t.h / b.h);
+  if (mode === 'fit') s = Math.min(t.w / b.w, t.h / b.h);
+  S.xf = { s, x: t.x + (t.w - b.w * s) / 2, y: t.y + (t.h - b.h * s) / 2 };
+  dirty = true; syncScale();
+}
+const layoutOn = () => !!(S.useLayout && S.layout);
+function scene() { return layoutOn() ? { w: S.layout.w, h: S.layout.h } : (S.box || { w: 640, h: 360 }); }
+function gifRect() {
+  if (!S.box) return null;
+  if (!layoutOn()) return { x: 0, y: 0, w: S.box.w, h: S.box.h };
+  return { x: S.xf.x, y: S.xf.y, w: S.box.w * S.xf.s, h: S.box.h * S.xf.s };
+}
+function outSize() {
+  const sc = scene(), k = Math.min(1, MAX_WIDTH / sc.w);
+  return { w: Math.max(1, Math.round(sc.w * k)), h: Math.max(1, Math.round(sc.h * k)) };
+}
+function scaleAround(p, f) {
+  const s = Math.min(50, Math.max(0.02, S.xf.s * f)); f = s / S.xf.s;
+  S.xf = { s, x: p.x - (p.x - S.xf.x) * f, y: p.y - (p.y - S.xf.y) * f };
+  dirty = true; syncScale();
+}
+function syncScale() {
+  $('#scale').value = Math.log2(S.xf.s);
+  $('#scaleOut').textContent = Math.round(S.xf.s * 100) + '%';
+}
+
+// ---- drawing (shared by preview and export) ----
+function drawScene(g, W, H, f, preview) {
+  const sc = scene(), k = W / sc.w;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = S.bg; g.fillRect(0, 0, W, H);
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.setTransform(k, 0, 0, k, 0, 0);
+  const r = gifRect();
+  if (f && r) {
+    const s = Math.min(r.w / f.w, r.h / f.h);
+    g.drawImage(f.bmp, r.x + (r.w - f.w * s) / 2, r.y + (r.h - f.h * s) / 2, f.w * s, f.h * s);
+  }
+  if (layoutOn()) {
+    g.globalAlpha = preview && dragView ? 0.45 : 1;
+    g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
+    g.globalAlpha = 1;
+    if (preview && r) {  // GIF bounds and corner handles, preview only
+      const px = devicePixelRatio / k;  // one css px in scene units
+      g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+      g.lineWidth = 1.5 * px; g.setLineDash([6 * px, 4 * px]);
+      g.strokeRect(r.x, r.y, r.w, r.h); g.setLineDash([]);
+      g.fillStyle = g.strokeStyle; const hs = 8 * px;
+      for (const [x, y] of corners(r)) g.fillRect(x - hs / 2, y - hs / 2, hs, hs);
+    }
+  }
+}
+const corners = r => [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]];
+
+// ---- preview ----
+const canvas = $('#preview'), pctx = canvas.getContext('2d');
+function sizePreview() {
+  const st = $('#stage').getBoundingClientRect(), sc = scene();
+  const k = Math.min((st.width - 2) / sc.w, (st.height - 2) / sc.h);
+  if (!(k > 0)) return;
+  const w = Math.floor(sc.w * k), h = Math.floor(sc.h * k);
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.round(w * devicePixelRatio); canvas.height = Math.round(h * devicePixelRatio);
+  dirty = true;
+}
+new ResizeObserver(sizePreview).observe($('#stage'));
+function draw() {
+  if (!seq.length) return;
+  drawScene(pctx, canvas.width, canvas.height, seq[pos], true);
+  highlight();
+}
+let lastCur = null;
+function highlight() {
+  const f = seq[pos], el = f && document.querySelector(`.tile[data-id="${f.id}"]`);
+  if (el === lastCur) return;
+  lastCur?.classList.remove('cur'); el?.classList.add('cur'); lastCur = el;
+  if (el && !S.playing) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function loop(now) {
+  const dt = now - last; last = now;
+  if (S.playing && seq.length > 1) {
+    acc += Math.min(dt, 1000);
+    for (let guard = 0; acc >= seq[pos].delay && guard < 100; guard++) {
+      acc -= seq[pos].delay; pos = (pos + 1) % seq.length; dirty = true;
+    }
+  }
+  if (dirty) { draw(); dirty = false; }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+function setPlaying(p) { S.playing = p; acc = 0; $('#bPlay').textContent = p ? 'Pause' : 'Play'; $('#bPlay').classList.toggle('on', !p); }
+function showFrame(f) { setPlaying(false); S.sel = f; const i = seq.indexOf(f); if (i >= 0) pos = i; dirty = true; renderSel(); }
+
+// dragging the GIF under the layout
+const ptrs = new Map(); let gesture = null;
+function toScene(e) {
+  const r = canvas.getBoundingClientRect(), sc = scene();
+  return { x: (e.clientX - r.left) / r.width * sc.w, y: (e.clientY - r.top) / r.height * sc.h };
+}
+const cssToScene = () => scene().w / canvas.getBoundingClientRect().width;
+function hitCorner(p) {
+  const r = gifRect(); if (!r) return null; const tol = 12 * cssToScene();
+  const i = corners(r).findIndex(([x, y]) => Math.abs(p.x - x) < tol && Math.abs(p.y - y) < tol);
+  return i < 0 ? null : i;
+}
+function startGesture() {
+  const pts = [...ptrs.values()];
+  if (pts.length >= 2) {
+    const [a, b] = pts;
+    gesture = { type: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: S.xf.s, x0: S.xf.x, y0: S.xf.y,
+      c0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  } else if (pts.length === 1) {
+    const p = pts[0], c = hitCorner(p), r = gifRect();
+    gesture = c === null ? { type: 'move', p0: p, x0: S.xf.x, y0: S.xf.y }
+      : { type: 'resize', left: c % 2 === 0, top: c < 2, ax: c % 2 === 0 ? r.x + r.w : r.x, ay: c < 2 ? r.y + r.h : r.y };
+  } else gesture = null;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (!layoutOn() || !S.box) return;
+  canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, toScene(e));
+  startGesture(); dragView = true; dirty = true;
+});
+canvas.addEventListener('pointermove', e => {
+  if (!layoutOn()) return;
+  if (!ptrs.has(e.pointerId)) {  // hover cursor
+    canvas.style.cursor = hitCorner(toScene(e)) === null ? 'move' : 'nwse-resize';
+    const c = hitCorner(toScene(e)); if (c === 1 || c === 2) canvas.style.cursor = 'nesw-resize';
+    return;
+  }
+  ptrs.set(e.pointerId, toScene(e));
+  const g = gesture; if (!g) return;
+  const b = S.box;
+  if (g.type === 'move') {
+    const p = ptrs.get(e.pointerId);
+    S.xf = { ...S.xf, x: g.x0 + p.x - g.p0.x, y: g.y0 + p.y - g.p0.y };
+  } else if (g.type === 'resize') {
+    const p = ptrs.get(e.pointerId);
+    const w = Math.max(8 * cssToScene(), Math.max(Math.abs(p.x - g.ax), Math.abs(p.y - g.ay) * b.w / b.h));
+    const s = w / b.w, h = b.h * s;
+    S.xf = { s, x: g.left ? g.ax - w : g.ax, y: g.top ? g.ay - h : g.ay };
+    syncScale();
+  } else if (g.type === 'pinch') {
+    const [a, c] = [...ptrs.values()];
+    const f = (Math.hypot(a.x - c.x, a.y - c.y) || 1) / g.d0, m = { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2 };
+    const s = Math.min(50, Math.max(0.02, g.s0 * f)), k = s / g.s0;
+    S.xf = { s, x: m.x - (g.c0.x - g.x0) * k, y: m.y - (g.c0.y - g.y0) * k };
+    syncScale();
+  }
+  dirty = true;
+});
+const endPtr = e => {
+  if (!ptrs.delete(e.pointerId)) return;
+  startGesture();
+  if (!ptrs.size) { dragView = false; dirty = true; }
+};
+canvas.addEventListener('pointerup', endPtr);
+canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('wheel', e => {
+  if (!layoutOn() || !S.box) return;
+  e.preventDefault();
+  scaleAround(toScene(e), Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)));
+}, { passive: false });
+
+// ---- filmstrip ----
+let dragFrom = null;
+function renderStrip() {
+  const tiles = $('#tiles'); tiles.textContent = ''; lastCur = null;
+  S.frames.forEach((f, i) => {
+    const t = document.createElement('div'); t.className = 'tile'; t.dataset.id = f.id;
+    t.innerHTML = `<div class="thumb" draggable="true" title="${f.name.replace(/"/g, '&quot;')}"><span class="n">${i + 1}</span><button class="del" title="Remove">×</button></div>
+      <label><input type="number" min="${MIN_DELAY}" step="10" value="${f.delay}"> ms</label>
+      <span class="mv touch-only"><button data-mv="-1">‹</button><button data-mv="1">›</button></span>`;
+    const th = t.querySelector('.thumb'); th.prepend(f.thumb);
+    th.onclick = e => { if (!e.target.closest('.del')) showFrame(f); };
+    t.querySelector('.del').onclick = () => removeFrame(f);
+    const inp = t.querySelector('input');
+    inp.oninput = () => { if (+inp.value >= MIN_DELAY) { f.delay = clampDelay(inp.value); updateInfo(); } };
+    inp.onchange = () => { f.delay = clampDelay(inp.value); inp.value = f.delay; updateInfo(); };
+    for (const b of t.querySelectorAll('[data-mv]')) b.onclick = () => moveFrame(i, i + +b.dataset.mv + (+b.dataset.mv > 0 ? 1 : 0));
+    th.ondragstart = e => { dragFrom = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-frame', String(i)); t.classList.add('dragging'); };
+    th.ondragend = () => { dragFrom = null; for (const el of tiles.children) el.classList.remove('dragging', 'before', 'after'); };
+    t.ondragover = e => {
+      if (dragFrom === null) return;
+      e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
+      const r = t.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+      for (const el of tiles.children) el.classList.remove('before', 'after');
+      t.classList.add(after ? 'after' : 'before');
+    };
+    t.ondrop = e => {
+      if (dragFrom === null) return;
+      e.preventDefault(); e.stopPropagation();
+      const r = t.getBoundingClientRect();
+      moveFrame(dragFrom, i + (e.clientX > r.left + r.width / 2 ? 1 : 0));
+    };
+    tiles.append(t);
+  });
+  renderSel(); dirty = true;
+}
+function renderSel() { for (const t of $('#tiles').children) t.classList.toggle('sel', S.sel && +t.dataset.id === S.sel.id); }
+function moveFrame(from, to) {  // to = insert position before removal
+  if (from < 0 || from >= S.frames.length) return;
+  to = Math.max(0, Math.min(S.frames.length, to));
+  if (from < to) to--;
+  if (from === to) return renderStrip();
+  const [f] = S.frames.splice(from, 1); S.frames.splice(to, 0, f);
+  changed();
+}
+function removeFrame(f) {
+  const i = S.frames.indexOf(f); if (i < 0) return;
+  S.frames.splice(i, 1); f.bmp.close?.();
+  if (S.sel === f) S.sel = S.frames[Math.min(i, S.frames.length - 1)] || null;
+  changed();
+}
+
+// ---- state changes ----
+function changed() {
+  if (!S.frames.length) { S.box = null; S.sel = null; }
+  const cur = seq[pos];
+  seq = S.boomerang && S.frames.length > 2 ? S.frames.concat(S.frames.slice(1, -1).reverse()) : S.frames.slice();
+  pos = Math.max(0, seq.indexOf(cur)); acc = 0;
+  $('#empty').classList.toggle('hidden', S.frames.length > 0);
+  canvas.classList.toggle('hidden', !S.frames.length);
+  canvas.classList.toggle('layout', layoutOn());
+  if (!layoutOn()) canvas.style.cursor = '';
+  $('#layoutBody').classList.toggle('off', !S.useLayout);
+  $('#layoutName').textContent = S.layout ? `${S.layout.name} · ${S.layout.w}×${S.layout.h}` : '';
+  $('#bExport').disabled = !S.frames.length;
+  renderStrip(); sizePreview(); updateInfo(); syncScale();
+}
+function updateInfo() {
+  const n = S.frames.length;
+  if (!n) { $('#info').textContent = 'No frames yet'; $('#exportInfo').textContent = exportText(); return; }
+  const ms = seq.reduce((a, f) => a + Math.round(f.delay / 10) * 10, 0);
+  $('#info').textContent = `${n} frame${n > 1 ? 's' : ''}` + (seq.length !== n ? ` · ${seq.length} in loop` : '') + ` · ${(ms / 1000).toFixed(2)} s`;
+  $('#exportInfo').textContent = exportText();
+}
+function exportText() {
+  const o = outSize();
+  return `${S.frames.length ? o.w + '×' + o.h + ' px · ' : ''}${COLORS} colors · ${DITHER ? 'dithered' : 'no dither'} · loops forever`;
+}
+let sayTimer;
+function say(msg, isErr) {
+  const r = $('#result'); r.textContent = msg; r.classList.toggle('err', !!isErr);
+  clearTimeout(sayTimer); if (isErr) sayTimer = setTimeout(() => { if (r.textContent === msg) r.textContent = ''; }, 8000);
+}
+
+// ---- controls ----
+$('#defDelay').value = S.delay;
+$('#defDelay').onchange = () => { S.delay = clampDelay($('#defDelay').value); $('#defDelay').value = S.delay; };
+$('#bApply').onclick = () => { S.delay = clampDelay($('#defDelay').value); for (const f of S.frames) f.delay = S.delay; changed(); };
+$('#bReverse').onclick = () => { S.frames.reverse(); changed(); };
+$('#bClear').onclick = () => { if (S.frames.length && confirm(`Remove all ${S.frames.length} frames?`)) { for (const f of S.frames) f.bmp.close?.(); S.frames = []; changed(); } };
+$('#bPlay').onclick = () => setPlaying(!S.playing);
+$('#bBoom').onclick = () => { S.boomerang = !S.boomerang; $('#bBoom').classList.toggle('on', S.boomerang); changed(); };
+$('#bAdd').onclick = $('#pick').onclick = () => $('#file').click();
+$('#file').onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+$('#bLayout').onclick = () => $('#layoutFile').click();
+$('#layoutFile').onchange = e => { if (e.target.files[0]) setLayout(e.target.files[0]); e.target.value = ''; };
+$('#useLayout').onchange = e => {
+  S.useLayout = e.target.checked;
+  if (S.useLayout && !S.layout) $('#layoutFile').click();
+  changed();
+};
+$('#bFill').onclick = () => place('fill');
+$('#bFit').onclick = () => place('fit');
+$('#bCenter').onclick = () => place('center');
+$('#scale').oninput = () => {
+  const r = gifRect(); if (!r || !layoutOn()) return;
+  scaleAround({ x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / S.xf.s);
+};
+$('#bg').oninput = e => { S.bg = e.target.value; dirty = true; };
+
+addEventListener('keydown', e => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || !$('#dialog').classList.contains('hidden')) return;
+  if (e.key === ' ') { e.preventDefault(); setPlaying(!S.playing); }
+  else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && seq.length) {
+    e.preventDefault();
+    const step = e.key === 'ArrowRight' ? 1 : -1;
+    if (e.shiftKey && layoutOn()) { S.xf.x += step * 10; dirty = true; return; }
+    setPlaying(false); pos = (pos + step + seq.length) % seq.length; S.sel = seq[pos]; dirty = true; renderSel();
+  }
+  else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && layoutOn()) { e.preventDefault(); S.xf.y += (e.key === 'ArrowDown' ? 10 : -10); dirty = true; }
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); removeFrame(S.sel); }
+});
+
+// ---- drop and paste ----
+let depth = 0;
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; document.body.classList.add('dragging'); });
+addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
+addEventListener('dragover', e => { e.preventDefault(); if (hasFiles(e)) e.dataTransfer.dropEffect = 'copy'; });
+addEventListener('drop', e => {
+  e.preventDefault(); depth = 0; document.body.classList.remove('dragging'); $('#layoutBox').classList.remove('droptarget');
+  const files = [...(e.dataTransfer?.files || [])]; if (!files.length) return;
+  if (e.target.closest?.('#layoutBox') && isImage(files[0])) setLayout(files[0]);
+  else handleFiles(files);
+});
+$('#layoutBox').addEventListener('dragover', e => { if (hasFiles(e)) $('#layoutBox').classList.add('droptarget'); });
+$('#layoutBox').addEventListener('dragleave', () => $('#layoutBox').classList.remove('droptarget'));
+addEventListener('paste', e => {
+  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length) { e.preventDefault(); handleFiles(files); }
+});
+
+// ---- export ----
+// One palette for all frames (median cut over sampled pixels). gif.js always builds a 256 color
+// palette itself, so we hand it ours via globalPalette; that is what makes COLORS work.
+function buildPalette(datas, n) {
+  const total = datas.reduce((a, d) => a + d.data.length / 4, 0);
+  const step = Math.max(1, Math.floor(total / 80000));
+  const px = [];
+  for (const d of datas) { const a = d.data; for (let i = 0; i < a.length; i += 4 * step) px.push(a[i] << 16 | a[i + 1] << 8 | a[i + 2]); }
+  const stat = arr => {
+    const lo = [255, 255, 255], hi = [0, 0, 0];
+    for (const c of arr) for (let k = 0; k < 3; k++) { const v = c >> (16 - 8 * k) & 255; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    const r = hi.map((h, k) => h - lo[k]), ch = r.indexOf(Math.max(...r));
+    return { arr, ch, score: r[ch] * arr.length };
+  };
+  const boxes = [stat(Uint32Array.from(px))];
+  while (boxes.length < n) {
+    let bi = -1;
+    boxes.forEach((b, i) => { if (b.arr.length > 1 && b.score > 0 && (bi < 0 || b.score > boxes[bi].score)) bi = i; });
+    if (bi < 0) break;
+    const { arr, ch } = boxes[bi], sh = 16 - 8 * ch;
+    arr.sort((a, b) => (a >> sh & 255) - (b >> sh & 255));
+    const mid = arr.length >> 1;
+    boxes.splice(bi, 1, stat(arr.subarray(0, mid)), stat(arr.subarray(mid)));
+  }
+  const pal = [];
+  for (const { arr } of boxes) {
+    let r = 0, g = 0, b = 0;
+    for (const c of arr) { r += c >> 16 & 255; g += c >> 8 & 255; b += c & 255; }
+    pal.push(Math.round(r / arr.length), Math.round(g / arr.length), Math.round(b / arr.length));
+  }
+  return pal;
+}
+let workerUrl = null;
+async function encoder() {
+  if (!window.GIF) throw new Error('gif.js did not load. Export needs internet (cdn.jsdelivr.net).');
+  if (!workerUrl) {  // a worker must be same-origin, so load it as a blob; this also works from file://
+    const r = await fetch(GIF_WORKER_URL); if (!r.ok) throw new Error('could not load gif.worker.js (' + r.status + ')');
+    workerUrl = URL.createObjectURL(new Blob([await r.text()], { type: 'application/javascript' }));
+  }
+  return workerUrl;
+}
+function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
+$('#bExport').onclick = async () => {
+  if (!seq.length) return;
+  const btn = $('#bExport'); btn.disabled = true;
+  try {
+    say('Loading encoder…'); progress(0);
+    const workerScript = await encoder();
+    const { w, h } = outSize();
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    const unique = [...new Set(seq)], data = new Map();
+    for (const [i, f] of unique.entries()) {
+      drawScene(g, w, h, f, false); data.set(f, g.getImageData(0, 0, w, h));
+      if (i % 10 === 9) { say(`Rendering ${i + 1} / ${unique.length}…`); progress(0.1 * (i + 1) / unique.length); await nextPaint(); }
+    }
+    say('Building palette…'); await nextPaint();
+    const palette = buildPalette([...data.values()], Math.max(2, Math.min(256, COLORS)));
+    const gif = new GIF({ workers: WORKERS, workerScript, width: w, height: h, repeat: 0,
+      dither: DITHER === true ? 'FloydSteinberg' : DITHER || false, globalPalette: palette });
+    // copy per frame: gif.js hands the pixel buffer over to its worker
+    for (const f of seq) { const d = data.get(f); gif.addFrame(new ImageData(new Uint8ClampedArray(d.data), w, h), { delay: f.delay }); }
+    gif.on('progress', p => { say(`Encoding ${Math.round(p * 100)}%…`); progress(0.1 + 0.9 * p); });
+    const blob = await new Promise((res, rej) => { gif.on('finished', res); gif.on('abort', () => rej(new Error('aborted'))); gif.render(); });
+    const d = new Date(), p2 = n => String(n).padStart(2, '0');
+    const name = `gif-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.gif`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    const size = blob.size > 1e6 ? (blob.size / 1e6).toFixed(2) + ' MB' : Math.round(blob.size / 1e3) + ' KB';
+    say(`Saved ${name} · ${w}×${h} · ${seq.length} frames · ${size}`);
+  } catch (err) { console.error(err); say('Export failed: ' + err.message, true); }
+  progress(null); btn.disabled = !S.frames.length;
+};
+
+changed();
+</script>
+</body>
+</html>
