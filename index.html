@@ -122,11 +122,10 @@
     #version { right: 10px; }
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
 </head>
 <body>
 <button id="bTheme" title="Light / dark"></button>
-<div id="version"><span id="versionText">v0.4</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<div id="version"><span id="versionText">v0.5</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -211,23 +210,202 @@
 <input id="file" type="file" multiple accept="image/*,video/*" hidden>
 <input id="layoutFile" type="file" accept="image/png,image/webp,image/*,application/pdf,.pdf" hidden>
 
+<script id="encoderSrc" type="javascript/worker">
+// GIF encoder, runs in a Web Worker. One global palette plus a transparent index; the first frame
+// is written whole, every later frame only as the rectangle of pixels that changed, with unchanged
+// pixels transparent. Messages are answered in order.
+'use strict';
+const BAYER = (() => {  // 8×8 ordered dither thresholds, -0.5…0.5
+  let m = [[0]];
+  for (let n = 1; n < 8; n *= 2) {
+    const r = [];
+    for (let y = 0; y < 2 * n; y++) { r.push([]); for (let x = 0; x < 2 * n; x++) r[y][x] = 4 * m[y % n][x % n] + [[0, 2], [3, 1]][(y / n) | 0][(x / n) | 0]; }
+    m = r;
+  }
+  return Float32Array.from(m.flat(), v => (v + 0.5) / 64 - 0.5);
+})();
+
+// ---- palette: median cut, then a few rounds of k-means ----
+function buildPalette(px, n) {
+  const count = px.length / 3, packed = new Uint32Array(count);
+  for (let i = 0; i < count; i++) packed[i] = px[3 * i] << 16 | px[3 * i + 1] << 8 | px[3 * i + 2];
+  const stat = arr => {
+    const lo = [255, 255, 255], hi = [0, 0, 0];
+    for (const c of arr) for (let k = 0; k < 3; k++) { const v = c >> (16 - 8 * k) & 255; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    const r = hi.map((h, k) => h - lo[k]), ch = r.indexOf(Math.max(...r));
+    return { arr, ch, score: r[ch] * Math.sqrt(arr.length) };
+  };
+  const boxes = [stat(packed)];
+  while (boxes.length < n) {
+    let bi = -1;
+    boxes.forEach((b, i) => { if (b.arr.length > 1 && b.score > 0 && (bi < 0 || b.score > boxes[bi].score)) bi = i; });
+    if (bi < 0) break;
+    const { arr, ch } = boxes[bi], sh = 16 - 8 * ch;
+    arr.sort((a, b) => (a >> sh & 255) - (b >> sh & 255));
+    const mid = arr.length >> 1;
+    boxes.splice(bi, 1, stat(arr.subarray(0, mid)), stat(arr.subarray(mid)));
+  }
+  let cent = boxes.map(({ arr }) => {
+    let r = 0, g = 0, b = 0;
+    for (const c of arr) { r += c >> 16 & 255; g += c >> 8 & 255; b += c & 255; }
+    return [r / arr.length, g / arr.length, b / arr.length];
+  });
+  const step = Math.max(1, Math.floor(count / 40000));
+  for (let it = 0; it < 4; it++) {
+    const sum = cent.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < count; i += step) {
+      const r = px[3 * i], g = px[3 * i + 1], b = px[3 * i + 2];
+      let best = 0, bd = Infinity;
+      for (let j = 0; j < cent.length; j++) { const c = cent[j], d = 2 * (r - c[0]) ** 2 + 4 * (g - c[1]) ** 2 + 3 * (b - c[2]) ** 2; if (d < bd) { bd = d; best = j; } }
+      const s = sum[best]; s[0] += r; s[1] += g; s[2] += b; s[3]++;
+    }
+    cent = cent.map((c, j) => sum[j][3] ? [sum[j][0] / sum[j][3], sum[j][1] / sum[j][3], sum[j][2] / sum[j][3]] : c);
+  }
+  return Uint8Array.from(cent.flat(), v => Math.round(v));
+}
+
+// ---- state ----
+let W, H, pal, nPal, tIdx, bits, minCode, cache, prev, dither, spread, tol2, out;
+function nearest(r, g, b) {
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < nPal; i++) {
+    const dr = r - pal[3 * i], dg = g - pal[3 * i + 1], db = b - pal[3 * i + 2], d = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+function look(r, g, b) {  // cached nearest color, 6 bits per channel
+  const k = (r >> 2) << 12 | (g >> 2) << 6 | (b >> 2);
+  let v = cache[k];
+  if (v < 0) v = cache[k] = nearest(r & 252 | 2, g & 252 | 2, b & 252 | 2);
+  return v;
+}
+function quantize(rgba, rx, ry, rw, rh) {
+  const q = new Uint8Array(rw * rh);
+  for (let y = 0; y < rh; y++) {
+    const brow = ((ry + y) & 7) * 8;
+    for (let x = 0; x < rw; x++) {
+      const p = y * rw + x, s = p * 4, r = rgba[s], g = rgba[s + 1], b = rgba[s + 2];
+      let i = look(r, g, b);
+      if (dither) {  // leave colors that the palette already has (flat layout areas, text) undithered
+        const e = Math.abs(r - pal[3 * i]) + Math.abs(g - pal[3 * i + 1]) + Math.abs(b - pal[3 * i + 2]);
+        if (e > 6) {
+          const t = BAYER[brow + ((rx + x) & 7)] * spread;
+          i = look(Math.min(255, Math.max(0, r + t)) | 0, Math.min(255, Math.max(0, g + t)) | 0, Math.min(255, Math.max(0, b + t)) | 0);
+        }
+      }
+      q[p] = i;
+    }
+  }
+  return q;
+}
+
+// ---- output ----
+class Out {
+  constructor(keep) { this.keep = keep; this.parts = []; this.buf = new Uint8Array(1 << 20); this.p = 0; this.total = 0; }
+  byte(b) { if (this.p === this.buf.length) this.flush(); this.buf[this.p++] = b; }
+  word(w) { this.byte(w & 255); this.byte(w >> 8 & 255); }
+  bytes(a, n = a.length) { for (let i = 0; i < n; i++) this.byte(a[i]); }
+  flush() { if (!this.p) return; if (this.keep) this.parts.push(this.buf.slice(0, this.p).buffer); this.total += this.p; this.p = 0; }
+  get size() { return this.total + this.p; }
+}
+const TABLE = new Int32Array(1 << 20); let gen = 0;  // LZW dictionary; an entry counts only for the current generation
+function nextGen() { if (++gen > 0xfffff) { TABLE.fill(0); gen = 1; } }
+function lzw(idx) {
+  out.byte(minCode);
+  const block = new Uint8Array(255); let bl = 0;
+  const flushBlock = () => { if (bl) { out.byte(bl); out.bytes(block, bl); bl = 0; } };
+  const clear = 1 << minCode, eoi = clear + 1;
+  let size = minCode + 1, next = eoi + 1, cur = 0, shift = 0;
+  const emit = c => { cur |= c << shift; shift += size; while (shift >= 8) { block[bl++] = cur & 255; if (bl === 255) flushBlock(); cur >>>= 8; shift -= 8; } };
+  nextGen(); emit(clear);
+  let ent = idx[0];
+  for (let i = 1, n = idx.length; i < n; i++) {
+    const k = idx[i], key = ent << 8 | k, v = TABLE[key];
+    if (v >>> 12 === gen) { ent = v & 4095; continue; }
+    emit(ent);
+    if (next === 4096) { emit(clear); next = eoi + 1; size = minCode + 1; nextGen(); }
+    else { if (next >= 1 << size) size++; TABLE[key] = gen << 12 | next++; }
+    ent = k;
+  }
+  emit(ent); emit(eoi);
+  while (shift > 0) { block[bl++] = cur & 255; if (bl === 255) flushBlock(); cur >>>= 8; shift -= 8; }
+  flushBlock(); out.byte(0);
+}
+function writeFrame(idx, x, y, w, h, cs, transparent) {
+  out.byte(0x21); out.byte(0xf9); out.byte(4); out.byte(1 << 2 | (transparent ? 1 : 0));  // disposal: keep
+  out.word(cs); out.byte(transparent ? tIdx : 0); out.byte(0);
+  out.byte(0x2c); out.word(x); out.word(y); out.word(w); out.word(h); out.byte(0);
+  lzw(idx);
+}
+
+function start(m) {
+  ({ W, H } = m); pal = m.palette; nPal = pal.length / 3; tIdx = nPal;
+  bits = Math.max(1, Math.ceil(Math.log2(nPal + 1))); minCode = Math.max(2, bits);
+  cache = new Int16Array(1 << 18).fill(-1); prev = new Uint8Array(W * H);
+  dither = m.dither; spread = m.strength * 255 / Math.cbrt(nPal); tol2 = m.tol * m.tol;
+  out = new Out(m.keep);
+  out.bytes([71, 73, 70, 56, 57, 97]);  // GIF89a
+  out.word(W); out.word(H); out.byte(0x80 | 0x70 | (bits - 1)); out.byte(0); out.byte(0);
+  for (let i = 0; i < 1 << bits; i++) { out.byte(pal[3 * i] || 0); out.byte(pal[3 * i + 1] || 0); out.byte(pal[3 * i + 2] || 0); }
+  out.bytes([0x21, 0xff, 11, 78, 69, 84, 83, 67, 65, 80, 69, 50, 46, 48, 3, 1, 0, 0, 0]);  // NETSCAPE2.0, loop forever
+}
+function frame(m) {
+  const { rgba, x: rx, y: ry, w: rw, h: rh } = m, before = out.size, cs = Math.max(2, Math.round(m.delay / 10));
+  const q = quantize(rgba, rx, ry, rw, rh);
+  if (m.full) {
+    prev.set(q);
+    if (!m.prime) writeFrame(q, 0, 0, W, H, cs, false);
+    return out.size - before;
+  }
+  let x0 = rw, y0 = rh, x1 = -1, y1 = -1;
+  for (let y = 0; y < rh; y++) {
+    const row = (ry + y) * W + rx;
+    for (let x = 0; x < rw; x++) {
+      const p = y * rw + x, i = q[p], pi = prev[row + x];
+      if (i === pi) { q[p] = tIdx; continue; }
+      if (tol2) {  // close enough to what is already shown: keep it
+        const s = p * 4, dr = rgba[s] - pal[3 * pi], dg = rgba[s + 1] - pal[3 * pi + 1], db = rgba[s + 2] - pal[3 * pi + 2];
+        if (dr * dr + dg * dg + db * db <= tol2) { q[p] = tIdx; continue; }
+      }
+      prev[row + x] = i;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  if (m.prime) return 0;
+  if (x1 < 0) { writeFrame(Uint8Array.of(tIdx), 0, 0, 1, 1, cs, true); return out.size - before; }
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1, sub = new Uint8Array(bw * bh);
+  for (let y = 0; y < bh; y++) sub.set(q.subarray((y0 + y) * rw + x0, (y0 + y) * rw + x0 + bw), y * bw);
+  writeFrame(sub, rx + x0, ry + y0, bw, bh, cs, true);
+  return out.size - before;
+}
+onmessage = ({ data: m }) => {
+  try {
+    if (m.type === 'palette') postMessage({ palette: buildPalette(m.samples, m.colors) });
+    else if (m.type === 'start') { start(m); postMessage({ size: out.size }); }
+    else if (m.type === 'frame') { const bytes = frame(m); postMessage({ bytes, size: out.size }); }
+    else if (m.type === 'end') { out.byte(0x3b); out.flush(); postMessage({ parts: out.parts, size: out.size }, out.parts); }
+  } catch (err) { postMessage({ error: err.message || String(err) }); }
+};
+</script>
+
 <script>
-// ---- Quality. Start small for fast test exports, tune up later. ----
-const MAX_WIDTH = 480;    // export width in px; larger sources (and the layout) are scaled down to this
-const COLORS = 32;        // palette size, 2–256, one palette shared by all frames
-const DITHER = false;     // false, true (= Floyd–Steinberg), or a gif.js mode: 'FalseFloydSteinberg', 'Stucki', 'Atkinson'
+// ---- Quality ----
+const MAX_BYTES = 15e6;         // export size budget; the encoder picks the best settings that fit (see LADDER)
+const MAX_WIDTH = 2070;         // export width in px (A3 at 177 dpi); larger layouts are scaled down to this
+const COLORS = 255;             // most colors used (255 + 1 transparent), one palette shared by all frames
+const DITHER = true;            // ordered dithering: smooth gradients, compresses well, no flicker
+const DITHER_STRENGTH = 0.5;    // 0–1
 
 // ---- Other limits ----
-const SOURCE_MAX_WIDTH = 960;  // frames are kept at most this wide in memory
+const SOURCE_MAX_WIDTH = 1440; // frames are kept at most this wide in memory
 const MAX_VIDEO_FRAMES = 300;  // per extraction
 const DEFAULT_DELAY = 100;     // ms, for images
 const DEFAULT_FPS = 10;        // video extraction
 const MIN_DELAY = 20;          // GIF stores 1/100 s; browsers play anything below 20 ms at 100 ms
-const WORKERS = 2;             // gif.js encoder workers
 const PDF_DPI = 177;           // PDF layouts are rendered at this resolution (A3 → 2070×2929 px)
 const PDF_MAX_SIDE = 6000;     // px, safety cap for huge pages
 const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/';  // legacy build: polyfills for Safari
-const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
 
 const $ = s => document.querySelector(s);
 const S = {
@@ -246,7 +424,7 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.4 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.5 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
@@ -431,7 +609,8 @@ async function decodePdf(file) {
     const c = document.createElement('canvas');
     c.width = Math.round(vp.width); c.height = Math.round(vp.height);
     c.getContext('2d');  // pdf.js asks for an opaque context; creating it first keeps the canvas transparent
-    await page.render({ canvas: c, viewport: vp, background: 'rgba(0,0,0,0)' }).promise;
+    // print intent: no requestAnimationFrame pacing, so it also finishes in a background tab
+    await page.render({ canvas: c, viewport: vp, background: 'rgba(0,0,0,0)', intent: 'print' }).promise;
     return { img: await createImageBitmap(c), pages: doc.numPages };
   } finally { task.destroy(); }
 }
@@ -515,7 +694,7 @@ function syncScale() {
 }
 
 // ---- drawing (shared by preview and export) ----
-function drawScene(g, W, H, f, preview) {
+function drawScene(g, W, H, f, preview, opts = {}) {
   const sc = scene(), k = W / sc.w;
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = S.bg; g.fillRect(0, 0, W, H);
@@ -527,7 +706,7 @@ function drawScene(g, W, H, f, preview) {
     if (preview && S.crop) { g.globalAlpha = 0.3; fit(); g.globalAlpha = 1; }  // the cropped-away parts, faint
     g.save(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip(); fit(); g.restore();
   }
-  if (layoutOn()) {
+  if (layoutOn() && opts.layout !== false) {
     g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
     g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
     g.globalAlpha = 1;
@@ -790,7 +969,7 @@ function updateInfo() {
 }
 function exportText() {
   const o = outSize();
-  return `${S.frames.length ? o.w + '×' + o.h + ' px · ' : ''}${COLORS} colors · ${DITHER ? 'dithered' : 'no dither'} · loops forever`;
+  return `${S.frames.length ? o.w + '×' + o.h + ' px · ' : ''}at most ${fmtMB(MAX_BYTES)} · best quality that fits · loops forever`;
 }
 let sayTimer;
 function say(msg, isErr) {
@@ -884,78 +1063,179 @@ addEventListener('paste', e => {
 });
 
 // ---- export ----
-// One palette for all frames (median cut over sampled pixels). gif.js always builds a 256 color
-// palette itself, so we hand it ours via globalPalette; that is what makes COLORS work.
-function buildPalette(datas, n) {
-  const total = datas.reduce((a, d) => a + d.data.length / 4, 0);
-  const step = Math.max(1, Math.floor(total / 80000));
-  const px = [];
-  for (const d of datas) { const a = d.data; for (let i = 0; i < a.length; i += 4 * step) px.push(a[i] << 16 | a[i + 1] << 8 | a[i + 2]); }
-  const stat = arr => {
-    const lo = [255, 255, 255], hi = [0, 0, 0];
-    for (const c of arr) for (let k = 0; k < 3; k++) { const v = c >> (16 - 8 * k) & 255; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
-    const r = hi.map((h, k) => h - lo[k]), ch = r.indexOf(Math.max(...r));
-    return { arr, ch, score: r[ch] * arr.length };
+// Our own encoder (see #encoderSrc) in a worker. Before encoding, a few sample frames are test-encoded
+// to estimate the file size, and the best-quality step of LADDER that fits MAX_BYTES is used.
+// The layout always stays at full resolution; only the moving picture gives way.
+const LADDER = [
+  { colors: 255, tol: 0,  pic: 1,    out: 1 },
+  { colors: 255, tol: 8,  pic: 1,    out: 1 },
+  { colors: 255, tol: 16, pic: 1,    out: 1 },
+  { colors: 192, tol: 24, pic: 1,    out: 1 },
+  { colors: 255, tol: 12, pic: 0.75, out: 1 },
+  { colors: 192, tol: 20, pic: 0.75, out: 1 },
+  { colors: 255, tol: 12, pic: 0.5,  out: 1 },
+  { colors: 128, tol: 24, pic: 0.5,  out: 1 },
+  // last resort: fewer frames (each kept frame lasts as long as the ones it replaces), then a smaller GIF
+  { colors: 128, tol: 24, pic: 0.5,  out: 1,    skip: 2 },
+  { colors: 128, tol: 24, pic: 0.5,  out: 0.75, skip: 2 },
+  { colors: 96,  tol: 32, pic: 0.5,  out: 0.75, skip: 3 },
+  { colors: 96,  tol: 32, pic: 0.5,  out: 0.5,  skip: 3 },
+];
+const SAMPLE_PAIRS = 6;  // consecutive frame pairs test-encoded per estimate
+let encoderUrl = null;
+function startEncoder() {
+  encoderUrl ||= URL.createObjectURL(new Blob([$('#encoderSrc').textContent], { type: 'text/javascript' }));
+  const w = new Worker(encoderUrl), waiting = [];
+  const fail = err => { while (waiting.length) waiting.shift()[1](err); };
+  w.onmessage = e => { const [res, rej] = waiting.shift(); e.data.error ? rej(new Error(e.data.error)) : res(e.data); };
+  w.onerror = e => { e.preventDefault(); fail(new Error(e.message || 'encoder crashed')); };
+  return {
+    call: (msg, transfer = []) => new Promise((res, rej) => { waiting.push([res, rej]); w.postMessage(msg, transfer); }),
+    stop: () => { w.terminate(); fail(new Error('stopped')); },
   };
-  const boxes = [stat(Uint32Array.from(px))];
-  while (boxes.length < n) {
-    let bi = -1;
-    boxes.forEach((b, i) => { if (b.arr.length > 1 && b.score > 0 && (bi < 0 || b.score > boxes[bi].score)) bi = i; });
-    if (bi < 0) break;
-    const { arr, ch } = boxes[bi], sh = 16 - 8 * ch;
-    arr.sort((a, b) => (a >> sh & 255) - (b >> sh & 255));
-    const mid = arr.length >> 1;
-    boxes.splice(bi, 1, stat(arr.subarray(0, mid)), stat(arr.subarray(mid)));
-  }
-  const pal = [];
-  for (const { arr } of boxes) {
-    let r = 0, g = 0, b = 0;
-    for (const c of arr) { r += c >> 16 & 255; g += c >> 8 & 255; b += c & 255; }
-    pal.push(Math.round(r / arr.length), Math.round(g / arr.length), Math.round(b / arr.length));
-  }
-  return pal;
 }
-let workerUrl = null;
-async function encoder() {
-  if (!window.GIF) throw new Error('gif.js did not load. Export needs internet (cdn.jsdelivr.net).');
-  if (!workerUrl) {  // a worker must be same-origin, so load it as a blob; this also works from file://
-    const r = await fetch(GIF_WORKER_URL); if (!r.ok) throw new Error('could not load gif.worker.js (' + r.status + ')');
-    workerUrl = URL.createObjectURL(new Blob([await r.text()], { type: 'application/javascript' }));
+// a step of the ladder in concrete terms; without a layout the picture is the whole GIF, so scale it all
+function concrete(step) {
+  const s = { skip: 1, ...step, colors: Math.min(step.colors, COLORS) };
+  s.list = [];  // what gets encoded: every skip-th frame of the loop, holding the time of the frames it replaces
+  for (let i = 0; i < seq.length; i += s.skip) s.list.push({ f: seq[i], delay: seq.slice(i, i + s.skip).reduce((a, f) => a + f.delay, 0) });
+  if (!layoutOn()) { s.out *= s.pic; s.pic = 1; }
+  const o = outSize();
+  s.W = Math.max(1, Math.round(o.w * s.out)); s.H = Math.max(1, Math.round(o.h * s.out));
+  // the area that can change: the GIF's frame, in output px; outside it only the static layout
+  const F = frameRect(), k = s.W / scene().w;
+  const x0 = Math.max(0, Math.floor(F.x * k)), y0 = Math.max(0, Math.floor(F.y * k));
+  const x1 = Math.min(s.W, Math.ceil((F.x + F.w) * k)), y1 = Math.min(s.H, Math.ceil((F.y + F.h) * k));
+  s.region = layoutOn() ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
+  return s;
+}
+const exportCanvas = document.createElement('canvas'), picCanvas = document.createElement('canvas');
+function renderExport(s, f) {
+  const c = exportCanvas; if (c.width !== s.W || c.height !== s.H) { c.width = s.W; c.height = s.H; }
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (s.pic === 1) { drawScene(g, s.W, s.H, f, false); return g; }
+  // picture at lower resolution, enlarged without smoothing (compresses far better); layout stays sharp
+  const p = picCanvas; p.width = Math.max(1, Math.round(s.W * s.pic)); p.height = Math.max(1, Math.round(s.H * s.pic));
+  drawScene(p.getContext('2d'), p.width, p.height, f, false, { layout: false });
+  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(p, 0, 0, s.W, s.H);
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  if (layoutOn()) g.drawImage(S.layout.img, 0, 0, s.W, s.H);
+  return g;
+}
+const regionOf = (g, r) => g.getImageData(r.x, r.y, r.w, r.h).data;
+function samplePixels(list, target) {  // rgb samples from several pixel arrays
+  const total = list.reduce((a, d) => a + d.length / 4, 0), step = Math.max(1, Math.floor(total / target));
+  const px = new Uint8Array(Math.ceil(total / step) * 3 + 3); let n = 0;
+  for (const d of list) for (let i = 0; i < d.length; i += 4 * step) { px[n++] = d[i]; px[n++] = d[i + 1]; px[n++] = d[i + 2]; }
+  return px.slice(0, n);
+}
+function samplePositions(N) {  // frames i, i+1 spread over the loop
+  const out = [];
+  for (let k = 0; k < Math.min(SAMPLE_PAIRS, N - 1); k++) { const i = Math.floor((k + 0.5) * (N - 1) / Math.min(SAMPLE_PAIRS, N - 1)); out.push([i, i + 1]); }
+  return out;
+}
+let sampleCache = null;  // rendered sample frames for one output geometry
+function renderSamples(s) {
+  const key = [s.W, s.H, s.pic, s.skip, s.region.x, s.region.y, s.region.w, s.region.h].join();
+  if (sampleCache?.key === key) return sampleCache;
+  sampleCache = null;
+  const L = s.list, g0 = renderExport(s, L[0].f);
+  const first = g0.getImageData(0, 0, s.W, s.H).data;
+  const pairs = samplePositions(L.length).map(([a, b]) => [regionOf(renderExport(s, L[a].f), s.region), regionOf(renderExport(s, L[b].f), s.region)]);
+  return sampleCache = { key, first, pairs };
+}
+const palettes = new Map();
+async function paletteFor(enc, colors) {
+  if (!palettes.has(colors)) {
+    const smp = renderSamples(concrete({ ...LADDER[0], colors }));  // colors of the full-quality render
+    const px = samplePixels([smp.first, ...smp.pairs.flat()], 150000);
+    palettes.set(colors, (await enc.call({ type: 'palette', samples: px, colors }, [px.buffer])).palette);
   }
-  return workerUrl;
+  return palettes.get(colors);
+}
+const encSettings = (s, palette, keep) => ({ type: 'start', W: s.W, H: s.H, palette: palette.slice(), dither: !!DITHER, strength: DITHER_STRENGTH, tol: s.tol, keep });
+async function estimate(enc, step) {
+  const s = concrete(step), palette = await paletteFor(enc, s.colors), smp = renderSamples(s);
+  const head = (await enc.call(encSettings(s, palette, false))).size;
+  const cp = d => { const c = new Uint8ClampedArray(d); return c; };
+  const frameMsg = (d, extra) => ({ type: 'frame', delay: 100, ...extra, rgba: d });
+  const firstCopy = cp(smp.first);
+  const first = (await enc.call(frameMsg(firstCopy, { full: true, x: 0, y: 0, w: s.W, h: s.H }), [firstCopy.buffer])).bytes;
+  let sum = 0;
+  for (const [a, b] of smp.pairs) {
+    const ca = cp(a), cb = cp(b), r = s.region;
+    await enc.call(frameMsg(ca, { prime: true, ...r }), [ca.buffer]);
+    sum += (await enc.call(frameMsg(cb, r), [cb.buffer])).bytes;
+  }
+  const per = smp.pairs.length ? sum / smp.pairs.length : 0;
+  return head + first + per * (s.list.length - 1) + 1;
+}
+const fmtMB = b => b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB';
+const describe = s => [`${s.colors} colors`, s.tol ? `tolerance ${s.tol}` : '', s.pic < 1 ? `picture at ${s.pic * 100}%` : '',
+  s.out < 1 ? `scaled to ${s.out * 100}%` : '', s.skip > 1 ? `every ${s.skip === 2 ? '2nd' : s.skip + 'rd'} frame` : ''].filter(Boolean).join(', ');
+async function encodeAll(enc, s, onProgress) {
+  const palette = await paletteFor(enc, s.colors);
+  await enc.call(encSettings(s, palette, true));
+  const pending = [];
+  let size = 0;
+  const L = s.list;
+  for (let i = 0; i < L.length; i++) {
+    const g = renderExport(s, L[i].f), full = i === 0, r = full ? { x: 0, y: 0, w: s.W, h: s.H } : s.region;
+    const d = regionOf(g, r);
+    pending.push(enc.call({ type: 'frame', rgba: d, delay: L[i].delay, full, ...r }, [d.buffer]).then(m => { size = m.size; }));
+    if (pending.length >= 2) await pending.shift();  // keep the worker busy, but memory flat
+    onProgress(i + 1, size);
+    if (size > MAX_BYTES) { await Promise.all(pending); return { over: true, at: i + 1, size }; }  // caller steps down
+  }
+  await Promise.all(pending);
+  const done = await enc.call({ type: 'end' });
+  return { blob: new Blob(done.parts, { type: 'image/gif' }) };
 }
 function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
 $('#bExport').onclick = async () => {
   if (!seq.length) return;
   const btn = $('#bExport'); btn.disabled = true;
+  const enc = startEncoder(); palettes.clear(); sampleCache = null;
+  const wasPlaying = S.playing; setPlaying(false);
   try {
-    say('Loading encoder…'); progress(0);
-    const workerScript = await encoder();
-    const { w, h } = outSize();
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const g = c.getContext('2d', { willReadFrequently: true });
-    const unique = [...new Set(seq)], data = new Map();
-    for (const [i, f] of unique.entries()) {
-      drawScene(g, w, h, f, false); data.set(f, g.getImageData(0, 0, w, h));
-      if (i % 10 === 9) { say(`Rendering ${i + 1} / ${unique.length}…`); progress(0.1 * (i + 1) / unique.length); await nextPaint(); }
+    // estimates per ladder step; `corr` is learned when a real encode runs over (the samples missed something)
+    const ests = new Map(); let corr = 1, probes = 0;
+    const est = async i => {
+      if (!ests.has(i)) {
+        ests.set(i, await estimate(enc, LADDER[i]));
+        progress(0.02 + 0.08 * Math.min(1, ++probes / 5));
+        say(`Estimating size… ${describe(concrete(LADDER[i]))} ≈ ${fmtMB(ests.get(i) * corr)}`); await nextPaint();
+      }
+      return ests.get(i) * corr;
+    };
+    const pick = async from => {  // best step from `from` on that should fit (binary search over the ladder)
+      let lo = from, hi = LADDER.length - 1, best = LADDER.length - 1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1; if (await est(mid) <= MAX_BYTES * 0.93) { best = mid; hi = mid - 1; } else lo = mid + 1; }
+      return best;
+    };
+    say('Estimating size…'); progress(0.02); await nextPaint();
+    let step = await pick(0), blob = null, s;
+    for (;;) {
+      sampleCache = null;
+      s = concrete(LADDER[step]);
+      const r = await encodeAll(enc, s, (i, size) => {
+        say(`Encoding ${i} / ${s.list.length} · ${fmtMB(size)} · ${describe(s)}`); progress(0.1 + 0.9 * i / s.list.length);
+      });
+      if (r.blob) { blob = r.blob; break; }
+      if (step === LADDER.length - 1) throw new Error(`Even the smallest settings go over ${fmtMB(MAX_BYTES)}. Shorten the GIF, lower the fps, or make the opening smaller.`);
+      corr = (r.size / r.at * s.list.length) / ests.get(step);  // how far off the estimate was
+      say(`Too big (would be ≈ ${fmtMB(r.size / r.at * s.list.length)}), trying smaller settings…`); await nextPaint();
+      step = await pick(step + 1);
     }
-    say('Building palette…'); await nextPaint();
-    const palette = buildPalette([...data.values()], Math.max(2, Math.min(256, COLORS)));
-    const gif = new GIF({ workers: WORKERS, workerScript, width: w, height: h, repeat: 0,
-      dither: DITHER === true ? 'FloydSteinberg' : DITHER || false, globalPalette: palette });
-    // copy per frame: gif.js hands the pixel buffer over to its worker
-    for (const f of seq) { const d = data.get(f); gif.addFrame(new ImageData(new Uint8ClampedArray(d.data), w, h), { delay: f.delay }); }
-    gif.on('progress', p => { say(`Encoding ${Math.round(p * 100)}%…`); progress(0.1 + 0.9 * p); });
-    const blob = await new Promise((res, rej) => { gif.on('finished', res); gif.on('abort', () => rej(new Error('aborted'))); gif.render(); });
     const d = new Date(), p2 = n => String(n).padStart(2, '0');
     const name = `gif-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.gif`;
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-    const size = blob.size > 1e6 ? (blob.size / 1e6).toFixed(2) + ' MB' : Math.round(blob.size / 1e3) + ' KB';
-    say(`Saved ${name} · ${w}×${h} · ${seq.length} frames · ${size}`);
+    say(`Saved ${name} · ${fmtMB(blob.size)} · ${s.W}×${s.H} · ${s.list.length} frames · ${describe(s)}`);
   } catch (err) { console.error(err); say('Export failed: ' + err.message, true); }
-  progress(null); btn.disabled = !S.frames.length;
+  enc.stop(); sampleCache = null;
+  progress(null); btn.disabled = !S.frames.length; if (wasPlaying) setPlaying(true);
 };
 
 changed();
