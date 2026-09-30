@@ -113,7 +113,7 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
 </head>
 <body>
-<div id="version"><span id="versionText">v0.1</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<div id="version"><span id="versionText">v0.2</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -153,11 +153,11 @@
     <label class="all"><input id="useLayout" type="checkbox"> Place into layout</label>
     <div id="layoutBody" class="off">
       <label class="lbl keep">File</label>
-      <span class="wide keep row"><button id="bLayout">choose PNG…</button><span id="layoutName" class="muted"></span></span>
+      <span class="wide keep row"><button id="bLayout">choose PNG / PDF…</button><span id="layoutName" class="muted"></span></span>
       <label class="lbl" for="scale">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
       <label class="lbl">Place</label>
       <span class="wide row"><button id="bFill" title="Cover the transparent opening of the layout">fill opening</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></span>
-      <span class="all muted">The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</span>
+      <span class="all muted">PNG or PDF (page 1), transparent where the GIF shows. The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</span>
     </div>
     <label class="lbl" for="bg">Background</label><input id="bg" type="color" value="#ffffff"><span></span>
   </section>
@@ -189,7 +189,7 @@
 </div></div>
 
 <input id="file" type="file" multiple accept="image/*,video/*" hidden>
-<input id="layoutFile" type="file" accept="image/png,image/webp,image/*" hidden>
+<input id="layoutFile" type="file" accept="image/png,image/webp,image/*,application/pdf,.pdf" hidden>
 
 <script>
 // ---- Quality. Start small for fast test exports, tune up later. ----
@@ -204,6 +204,8 @@ const DEFAULT_DELAY = 100;     // ms, for images
 const DEFAULT_FPS = 10;        // video extraction
 const MIN_DELAY = 20;          // GIF stores 1/100 s; browsers play anything below 20 ms at 100 ms
 const WORKERS = 2;             // gif.js encoder workers
+const PDF_RENDER_WIDTH = 2000; // px, PDF layouts are rendered this wide (then scaled like any layout)
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/';
 const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
 
 const $ = s => document.querySelector(s);
@@ -221,7 +223,7 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.1 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.2 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
@@ -235,6 +237,7 @@ for (const h of document.querySelectorAll('.fold')) h.onclick = () => h.parentEl
 
 // ---- helpers ----
 const isVideo = f => f.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name);
+const isPdf = f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 const isImage = f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(f.name);
 const clampDelay = v => Math.max(MIN_DELAY, Math.round(+v || DEFAULT_DELAY));
 const nextPaint = () => new Promise(r => setTimeout(r, 0));
@@ -281,7 +284,8 @@ async function handleFiles(list) {
   const files = [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   const videos = [], skipped = [];
   for (const f of files) {
-    if (isVideo(f)) videos.push(f);
+    if (isPdf(f)) await setLayout(f);  // a PDF can only be a layout
+    else if (isVideo(f)) videos.push(f);
     else if (isImage(f)) {
       try { const b = await decodeImage(f); addFrame(await shrink(b, b.width, b.height), f.name, S.delay); }
       catch (err) { console.warn(err); skipped.push(f.name); }
@@ -380,14 +384,48 @@ function findHole(img) {  // bounding box of the transparent area, in layout px
   if (x1 < 0) return null;
   return { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k };
 }
+// PDF layouts: page 1 is rendered with pdf.js onto a transparent canvas, so empty areas stay see-through
+let pdfjs = null;
+async function loadPdfjs() {
+  if (!pdfjs) {
+    const lib = await import(PDFJS_URL + 'pdf.min.mjs');
+    // pdf.js wraps a cross-origin worker itself, and falls back to the main thread where
+    // workers are not allowed (e.g. opened from disk)
+    lib.GlobalWorkerOptions.workerSrc = PDFJS_URL + 'pdf.worker.min.mjs';
+    pdfjs = lib;
+  }
+  return pdfjs;
+}
+async function decodePdf(file) {
+  let lib;
+  try { lib = await loadPdfjs(); } catch (err) { throw new Error('pdf.js did not load. PDF layouts need internet (cdn.jsdelivr.net).'); }
+  const task = lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  try {
+    const doc = await task.promise;
+    const page = await doc.getPage(1);
+    const vp = page.getViewport({ scale: PDF_RENDER_WIDTH / page.getViewport({ scale: 1 }).width });
+    const c = document.createElement('canvas');
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    c.getContext('2d');  // pdf.js asks for an opaque context; creating it first keeps the canvas transparent
+    await page.render({ canvas: c, viewport: vp, background: 'rgba(0,0,0,0)' }).promise;
+    return { img: await createImageBitmap(c), pages: doc.numPages };
+  } finally { task.destroy(); }
+}
 async function setLayout(file) {
   try {
-    const img = await decodeImage(file);
-    S.layout = { img, w: img.width, h: img.height, name: file.name, hole: findHole(img) };
+    let img, name = file.name;
+    if (isPdf(file)) {
+      say('Converting PDF…');
+      const r = await decodePdf(file);
+      img = r.img; say('');
+      if (r.pages > 1) name += ` · page 1 of ${r.pages}`;
+    } else img = await decodeImage(file);
+    S.layout?.img.close?.();
+    S.layout = { img, w: img.width, h: img.height, name, hole: findHole(img) };
     S.useLayout = true; $('#useLayout').checked = true;
     place('fill'); changed();
-    if (!S.layout.hole) say('This layout has no transparent area, so the GIF is hidden under it. Use a PNG with a transparent opening.', true);
-  } catch (err) { console.warn(err); say('Could not read that layout image.', true); }
+    if (!S.layout.hole) say('This layout has no transparent area, so the GIF is hidden under it. Use a PNG or PDF with a transparent opening.', true);
+  } catch (err) { console.warn(err); say('Could not read that layout: ' + err.message, true); }
 }
 function place(mode) {
   if (!S.layout || !S.box) return;
@@ -687,7 +725,7 @@ addEventListener('dragover', e => { e.preventDefault(); if (hasFiles(e)) e.dataT
 addEventListener('drop', e => {
   e.preventDefault(); depth = 0; document.body.classList.remove('dragging'); $('#layoutBox').classList.remove('droptarget');
   const files = [...(e.dataTransfer?.files || [])]; if (!files.length) return;
-  if (e.target.closest?.('#layoutBox') && isImage(files[0])) setLayout(files[0]);
+  if (e.target.closest?.('#layoutBox') && (isImage(files[0]) || isPdf(files[0]))) setLayout(files[0]);
   else handleFiles(files);
 });
 $('#layoutBox').addEventListener('dragover', e => { if (hasFiles(e)) $('#layoutBox').classList.add('droptarget'); });

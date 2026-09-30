@@ -7,10 +7,10 @@ A browser-based GIF maker. Drop images or a video into the page, arrange the fra
 - **Images and video:** drop, paste (⌘V / Ctrl+V) or choose files. Images are sorted by file name. Video frames are pulled out in the browser at the frame rate you pick, with an optional time range.
 - **Filmstrip:** drag frames to reorder, × to remove, set each frame's duration in ms.
 - **Boomerang:** plays the frames forward, then backward, without repeating the first and last frame.
-- **Place into layout:** load a PNG with a transparent opening. The layout sits on top of the GIF, so title, name and logo stay visible. Drag the preview to move the GIF, drag its corners or scroll to resize. The export is the full layout, animated.
+- **Place into layout:** load a PNG or PDF with a transparent opening. A PDF is converted in the browser with [pdf.js](https://github.com/mozilla/pdf.js) (page 1, 2000 px wide); areas with nothing on them stay transparent, so leave the opening empty instead of filling it white. The layout sits on top of the GIF, so title, name and logo stay visible. Drag the preview to move the GIF, drag its corners or scroll to resize. The export is the full layout, animated.
 - **Export:** GIF only, encoded in the browser with [gif.js](https://github.com/jnordberg/gif.js).
 
-Everything runs locally in your browser; files are not uploaded anywhere. It is a single `index.html` with no build step; open it from disk or from GitHub Pages. Export needs internet once to load gif.js from jsDelivr.
+Everything runs locally in your browser; files are not uploaded anywhere. It is a single `index.html` with no build step; open it from disk or from GitHub Pages. Export and PDF layouts need internet to load gif.js and pdf.js from jsDelivr.
 
 ## Quality settings
 
@@ -25,4 +25,4 @@ Constants at the top of the script in `index.html`:
 ## License
 
 - **Code:** © 2026 Ivan Bagaturiya, licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).
-- **gif.js** (loaded from jsDelivr) is under its own MIT license.
+- **gif.js** (MIT) and **pdf.js** (Apache-2.0), loaded from jsDelivr, are under their own licenses.
