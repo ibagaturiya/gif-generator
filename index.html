@@ -20,7 +20,7 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
   body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr) auto;
-    gap: 12px; padding: 22px 16px 16px; overflow: hidden; }
+    gap: 12px; padding: 22px 16px 20px; overflow: hidden; }
   .ui { background: var(--panel); backdrop-filter: blur(6px);
     border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
   h1 { font-size: 13px; font-weight: 600; margin: 0 0 6px; letter-spacing: .02em; }
@@ -37,6 +37,10 @@
   input[type=color] { width: 36px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
   .muted { color: var(--muted); }
   .hidden { display: none !important; }
+  #bTheme { position: fixed; right: 18px; bottom: 4px; width: 12px; height: 12px; padding: 0; border: none;
+    border-radius: 50%; background: var(--fg); z-index: 6; }
+  #bTheme::after { content: ''; position: absolute; inset: -8px; }  /* bigger hit area */
+  #bTheme:hover { background: var(--accent); }
   #version { position: fixed; top: 4px; right: 18px; font-size: 10px; color: var(--muted); letter-spacing: .02em; pointer-events: none; }
   #version a { color: inherit; pointer-events: auto; }
 
@@ -72,7 +76,15 @@
   #result.err { color: var(--accent); }
 
   #strip { grid-column: 1; grid-row: 2; min-width: 0; }
-  #strip .head { display: flex; justify-content: space-between; gap: 10px; }
+  #strip .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  #tc { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  #tc b { color: var(--fg); font-weight: 500; }
+  #overview { position: relative; height: 40px; margin: 4px 0 8px; border-radius: 3px; overflow: hidden;
+    background: var(--line); cursor: ew-resize; touch-action: none; user-select: none; }
+  #overview canvas { display: block; width: 100%; height: 100%; }
+  #playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.85), 0 0 4px rgba(0,0,0,.6); }
+  #playhead::before { content: ''; position: absolute; top: 0; left: -4px; border: 5px solid transparent; border-top-color: var(--accent); }
   #tiles { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; min-height: 108px; }
   #tiles:empty::before { content: 'Frames appear here'; color: var(--muted); align-self: center; padding-left: 4px; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 3px;
@@ -113,7 +125,8 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
 </head>
 <body>
-<div id="version"><span id="versionText">v0.3</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<button id="bTheme" title="Light / dark"></button>
+<div id="version"><span id="versionText">v0.4</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -134,7 +147,6 @@
       <button id="bAdd" title="Add images or a video">+ Add</button>
       <button id="bPlay" title="Space">Pause</button>
       <button id="bBoom" title="Append the frames in reverse, without repeating the end frames">Boomerang</button>
-      <button id="bTheme">Light</button>
     </div>
   </section>
 
@@ -144,6 +156,10 @@
     <span class="row"><input id="defDelay" type="number" min="20" step="10"> ms</span>
     <button id="bApply" title="Set every frame to this duration">all</button>
     <span class="all muted">New images get this duration. Video frames get 1000 / fps.</span>
+    <label for="total">Length</label>
+    <span class="row"><input id="total" type="number" min="0.1" step="0.1"> s</span>
+    <button id="bLen" title="Scale every frame's duration so one loop lasts this long">set</button>
+    <span class="all muted">One loop, boomerang included. Frames keep their relative timing; GIFs count in 10 ms steps, 20 ms minimum.</span>
     <label>Order</label>
     <span class="row wide"><button id="bReverse">reverse</button><button id="bClear">remove all</button></span>
   </section>
@@ -175,7 +191,8 @@
 </aside>
 
 <section id="strip" class="ui">
-  <div class="head"><h1>Filmstrip</h1><span class="muted desk-only">drag to reorder · click to show · Del removes</span></div>
+  <div class="head"><h1>Filmstrip</h1><span id="tc"></span><span class="muted desk-only">drag to reorder · click to show · Del removes</span></div>
+  <div id="overview" class="hidden" title="Whole loop. Click or drag to scrub."><canvas></canvas><div id="playhead"></div></div>
   <div id="tiles"></div>
 </section>
 
@@ -207,7 +224,8 @@ const DEFAULT_DELAY = 100;     // ms, for images
 const DEFAULT_FPS = 10;        // video extraction
 const MIN_DELAY = 20;          // GIF stores 1/100 s; browsers play anything below 20 ms at 100 ms
 const WORKERS = 2;             // gif.js encoder workers
-const PDF_RENDER_WIDTH = 2000; // px, PDF layouts are rendered this wide (then scaled like any layout)
+const PDF_DPI = 177;           // PDF layouts are rendered at this resolution (A3 → 2070×2929 px)
+const PDF_MAX_SIDE = 6000;     // px, safety cap for huge pages
 const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/';  // legacy build: polyfills for Safari
 const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
 
@@ -228,12 +246,12 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.3 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.4 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  $('#bTheme').textContent = t === 'dark' ? 'Light' : 'Dark';
+  $('#bTheme').setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
   store.set('gifgen.theme', t);
 }
 applyTheme(store.get('gifgen.theme') || 'dark');
@@ -244,7 +262,7 @@ for (const h of document.querySelectorAll('.fold')) h.onclick = () => h.parentEl
 const isVideo = f => f.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name);
 const isPdf = f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 const isImage = f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(f.name);
-const clampDelay = v => Math.max(MIN_DELAY, Math.round(+v || DEFAULT_DELAY));
+const clampDelay = v => Math.max(MIN_DELAY, Math.round((+v || DEFAULT_DELAY) / 10) * 10);  // GIF stores 1/100 s
 const nextPaint = () => new Promise(r => setTimeout(r, 0));
 
 async function decodeImage(file) {
@@ -343,7 +361,7 @@ function videoDialog(file) {
       if (busy) return;
       const { fps, n } = params();
       const over = n > MAX_VIDEO_FRAMES;
-      $('#vCount').textContent = `→ ${n} frames at ${Math.round(1000 / fps)} ms`;
+      $('#vCount').textContent = `→ ${n} frames at ${clampDelay(1000 / fps)} ms`;
       $('#vErr').textContent = over ? `More than ${MAX_VIDEO_FRAMES} frames. Lower the fps or shorten the range.` : '';
       $('#vGo').disabled = over;
     };
@@ -408,7 +426,8 @@ async function decodePdf(file) {
   try {
     const doc = await task.promise;
     const page = await doc.getPage(1);
-    const vp = page.getViewport({ scale: PDF_RENDER_WIDTH / page.getViewport({ scale: 1 }).width });
+    const v1 = page.getViewport({ scale: 1 });  // 1 unit = 1 pt = 1/72 in
+    const vp = page.getViewport({ scale: Math.min(PDF_DPI / 72, PDF_MAX_SIDE / Math.max(v1.width, v1.height)) });
     const c = document.createElement('canvas');
     c.width = Math.round(vp.width); c.height = Math.round(vp.height);
     c.getContext('2d');  // pdf.js asks for an opaque context; creating it first keeps the canvas transparent
@@ -554,8 +573,48 @@ function highlight() {
   const f = seq[pos], el = f && document.querySelector(`.tile[data-id="${f.id}"]`);
   if (el === lastCur) return;
   lastCur?.classList.remove('cur'); el?.classList.add('cur'); lastCur = el;
-  if (el && !S.playing) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // follow the playhead, unless the filmstrip was just scrolled by hand
+  if (el && (!S.playing || performance.now() - tilesTouched > 3000)) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
+let tilesTouched = 0;
+for (const ev of ['wheel', 'pointerdown', 'touchstart']) $('#tiles').addEventListener(ev, () => tilesTouched = performance.now(), { passive: true });
+
+// ---- overview: the whole loop, frame widths by duration, playhead, scrubbing ----
+const ov = $('#overview canvas');
+let ovStart = [], ovTotal = 0, lastTc = '';
+function drawOverview() {
+  $('#overview').classList.toggle('hidden', !seq.length);
+  ovStart = []; ovTotal = 0;
+  for (const f of seq) { ovStart.push(ovTotal); ovTotal += f.delay; }
+  const W = ov.clientWidth, H = ov.clientHeight; if (!W || !seq.length) return;
+  ov.width = Math.round(W * devicePixelRatio); ov.height = Math.round(H * devicePixelRatio);
+  const g = ov.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  g.imageSmoothingQuality = 'high';
+  seq.forEach((f, i) => {
+    const x0 = ovStart[i] / ovTotal * W, x1 = (ovStart[i] + f.delay) / ovTotal * W, w = x1 - x0;
+    const t = f.thumb, k = Math.max(w / t.width, H / t.height), sw = w / k, sh = H / k;  // cover the slot
+    g.drawImage(t, (t.width - sw) / 2, (t.height - sh) / 2, sw, sh, x0, 0, w, H);
+    if (i >= S.frames.length) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x0, 0, w, H); }  // boomerang return
+    if (w > 4 && i) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x0, 0, 1, H); }
+  });
+}
+new ResizeObserver(drawOverview).observe($('#overview'));
+const fmtT = ms => (ms / 1000).toFixed(2) + ' s';
+function placePlayhead() {
+  if (!seq.length || !ovTotal) return;
+  const t = ovStart[pos] + (S.playing ? Math.min(acc, seq[pos].delay) : 0);
+  $('#playhead').style.left = (t / ovTotal * 100) + '%';
+  const tc = `<b>${pos + 1}</b> / ${seq.length} · <b>${fmtT(ovStart[pos])}</b> / ${fmtT(ovTotal)}`;
+  if (tc !== lastTc) { $('#tc').innerHTML = tc; lastTc = tc; }
+}
+function scrubTo(e) {
+  const r = $('#overview').getBoundingClientRect(), t = Math.max(0, Math.min(0.9999, (e.clientX - r.left) / r.width)) * ovTotal;
+  let i = ovStart.findIndex((s0, k) => t >= s0 && t < s0 + seq[k].delay); if (i < 0) i = seq.length - 1;
+  if (S.playing) setPlaying(false);
+  if (i !== pos || S.sel !== seq[i]) { pos = i; S.sel = seq[i]; dirty = true; renderSel(); }
+}
+$('#overview').addEventListener('pointerdown', e => { if (!seq.length) return; $('#overview').setPointerCapture(e.pointerId); scrubTo(e); });
+$('#overview').addEventListener('pointermove', e => { if ($('#overview').hasPointerCapture(e.pointerId)) scrubTo(e); });
 function loop(now) {
   const dt = now - last; last = now;
   if (S.playing && seq.length > 1) {
@@ -565,6 +624,7 @@ function loop(now) {
     }
   }
   if (dirty) { draw(); dirty = false; }
+  placePlayhead();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -724,6 +784,8 @@ function updateInfo() {
   if (!n) { $('#info').textContent = 'No frames yet'; $('#exportInfo').textContent = exportText(); return; }
   const ms = seq.reduce((a, f) => a + Math.round(f.delay / 10) * 10, 0);
   $('#info').textContent = `${n} frame${n > 1 ? 's' : ''}` + (seq.length !== n ? ` · ${seq.length} in loop` : '') + ` · ${(ms / 1000).toFixed(2)} s`;
+  if (document.activeElement !== $('#total')) $('#total').value = (ms / 1000).toFixed(2);
+  drawOverview();
   $('#exportInfo').textContent = exportText();
 }
 function exportText() {
@@ -740,6 +802,28 @@ function say(msg, isErr) {
 $('#defDelay').value = S.delay;
 $('#defDelay').onchange = () => { S.delay = clampDelay($('#defDelay').value); $('#defDelay').value = S.delay; };
 $('#bApply').onclick = () => { S.delay = clampDelay($('#defDelay').value); for (const f of S.frames) f.delay = S.delay; changed(); };
+// scale every frame so one loop lasts `sec`; rounding to 10 ms steps is evened out afterwards
+function setLength(sec) {
+  if (!seq.length || !(sec > 0)) return;
+  const total = () => seq.reduce((a, f) => a + f.delay, 0);
+  const k = sec * 1000 / total();
+  for (const f of S.frames) f.delay = clampDelay(f.delay * k);
+  const uses = new Map(); for (const f of seq) uses.set(f, (uses.get(f) || 0) + 1);
+  const order = [...S.frames].sort((a, b) => uses.get(a) - uses.get(b));  // single-use frames give the finest steps
+  for (let guard = 0, i = 0; guard < 20000; guard++, i++) {
+    const diff = sec * 1000 - total();
+    if (Math.abs(diff) < 10) break;
+    const f = order[i % order.length], step = diff > 0 ? 10 : -10, u = uses.get(f);
+    if (u * 10 > Math.abs(diff) + 5 && order.some(o => uses.get(o) === 1)) continue;
+    if (f.delay + step >= MIN_DELAY) f.delay += step;
+    else if (order.every(o => o.delay <= MIN_DELAY)) break;
+  }
+  const got = total();
+  if (Math.abs(got - sec * 1000) >= 10) say(`Shortest possible with ${seq.length} frames: ${fmtT(seq.length * MIN_DELAY)} (${MIN_DELAY} ms each). Remove frames or lower the fps to go shorter.`, true);
+  changed();
+}
+$('#total').onchange = () => setLength(+$('#total').value);
+$('#bLen').onclick = () => setLength(+$('#total').value);
 $('#bReverse').onclick = () => { S.frames.reverse(); changed(); };
 $('#bClear').onclick = () => { if (S.frames.length && confirm(`Remove all ${S.frames.length} frames?`)) { for (const f of S.frames) f.bmp.close?.(); S.frames = []; changed(); } };
 $('#bPlay').onclick = () => setPlaying(!S.playing);

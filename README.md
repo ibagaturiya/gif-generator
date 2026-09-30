@@ -5,9 +5,10 @@ A browser-based GIF maker. Drop images or a video into the page, arrange the fra
 **Open it:** https://ibagaturiya.github.io/gif-generator/
 
 - **Images and video:** drop, paste (⌘V / Ctrl+V) or choose files. Images are sorted by file name. Video frames are pulled out in the browser at the frame rate you pick, with an optional time range.
-- **Filmstrip:** drag frames to reorder, × to remove, set each frame's duration in ms.
+- **Filmstrip:** an overview of the whole loop (frame widths by duration) with a playhead; click or drag it to scrub. Below it, drag frames to reorder, × to remove, set each frame's duration in ms.
+- **Length:** set how long one loop lasts; every frame's duration is scaled to match.
 - **Boomerang:** plays the frames forward, then backward, without repeating the first and last frame.
-- **Place into layout:** load a PNG or PDF with a transparent opening. A PDF is converted in the browser with [pdf.js](https://github.com/mozilla/pdf.js) (page 1, 2000 px wide); areas with nothing on them stay transparent, so leave the opening empty instead of filling it white. The layout sits on top of the GIF, so title, name and logo stay visible. Drag the preview to move the GIF, drag its corners or scroll to resize. The export is the full layout, animated.
+- **Place into layout:** load a PNG or PDF with a transparent opening. A PDF is converted in the browser with [pdf.js](https://github.com/mozilla/pdf.js) (page 1, at 177 dpi: A3 → 2070×2929 px); areas with nothing on them stay transparent, so leave the opening empty instead of filling it white. The layout sits on top of the GIF, so title, name and logo stay visible. Drag the preview to move the GIF, drag its corners or scroll to resize. The export is the full layout, animated.
 - **Crop:** double-click the preview (or press *crop*) to move and zoom the picture inside its frame; with a layout, drag the frame's edges to crop them. Double-click again or Esc to finish. Works with and without a layout.
 - **Export:** GIF only, encoded in the browser with [gif.js](https://github.com/jnordberg/gif.js).
 
