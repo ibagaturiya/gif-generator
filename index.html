@@ -113,7 +113,7 @@
 <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" defer></script>
 </head>
 <body>
-<div id="version"><span id="versionText">v0.2</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+<div id="version"><span id="versionText">v0.2.1</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -205,7 +205,7 @@ const DEFAULT_FPS = 10;        // video extraction
 const MIN_DELAY = 20;          // GIF stores 1/100 s; browsers play anything below 20 ms at 100 ms
 const WORKERS = 2;             // gif.js encoder workers
 const PDF_RENDER_WIDTH = 2000; // px, PDF layouts are rendered this wide (then scaled like any layout)
-const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/';
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/';  // legacy build: polyfills for Safari
 const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
 
 const $ = s => document.querySelector(s);
@@ -223,7 +223,7 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.2 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.2.1 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
