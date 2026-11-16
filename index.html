@@ -9,103 +9,152 @@
 <title>GIF Generator</title>
 <style>
   :root {
-    --bg: #1b1b1a; --fg: #e8e6e1; --muted: #8d8a83; --line: #3a3936;
-    --panel: rgba(27,27,26,.82); --accent: #d9442b;
+    --bg: #141416; --fg: #f2f1ee; --muted: rgba(235,235,245,.58); --line: rgba(255,255,255,.12);
+    --glass: rgba(30,30,34,.52); --glass-hi: rgba(255,255,255,.07); --edge: rgba(255,255,255,.13);
+    --btn: rgba(255,255,255,.07); --btn-hover: rgba(255,255,255,.14); --accent: #ff5b3d; --accent-soft: rgba(255,91,61,.18);
+    --shadow: 0 12px 40px rgba(0,0,0,.38);
+    --panel: var(--glass);
   }
   :root[data-theme="light"] {
-    --bg: #eeece7; --fg: #1d1d1b; --muted: #6f6c66; --line: #cfccc4;
-    --panel: rgba(238,236,231,.86); --accent: #c23a22;
+    --bg: #ecebe7; --fg: #1c1c1e; --muted: rgba(60,60,67,.62); --line: rgba(0,0,0,.1);
+    --glass: rgba(255,255,255,.58); --glass-hi: rgba(255,255,255,.7); --edge: rgba(0,0,0,.08);
+    --btn: rgba(0,0,0,.05); --btn-hover: rgba(0,0,0,.1); --accent: #e0442a; --accent-soft: rgba(224,68,42,.13);
+    --shadow: 0 12px 36px rgba(0,0,0,.14);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
-    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
-  body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr) auto;
-    gap: 12px; padding: 22px 16px 20px; overflow: hidden; }
-  .ui { background: var(--panel); backdrop-filter: blur(6px);
-    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
-  h1 { font-size: 13px; font-weight: 600; margin: 0 0 6px; letter-spacing: .02em; }
-  button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line);
-    border-radius: 4px; padding: 4px 9px; cursor: pointer; }
-  button:hover { border-color: var(--fg); }
-  button.on { border-color: var(--accent); color: var(--accent); }
-  button:disabled { opacity: .45; cursor: default; border-color: var(--line); }
-  button.primary { border-color: var(--accent); color: var(--accent); width: 100%; padding: 6px 9px; }
-  input[type=number] { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line);
-    border-radius: 4px; padding: 2px 5px; width: 5.5em; font-variant-numeric: tabular-nums; }
-  input[type=number]:focus { outline: none; border-color: var(--accent); }
-  input[type=range], input[type=checkbox] { accent-color: var(--accent); }
-  input[type=color] { width: 36px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
-  .muted { color: var(--muted); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
   .hidden { display: none !important; }
-  #bTheme { position: fixed; right: 18px; bottom: 4px; width: 12px; height: 12px; padding: 0; border: none;
-    border-radius: 50%; background: var(--fg); z-index: 6; }
-  #bTheme::after { content: ''; position: absolute; inset: -8px; }  /* bigger hit area */
-  #bTheme:hover { background: var(--accent); }
-  #version { position: fixed; top: 4px; right: 18px; font-size: 10px; color: var(--muted); letter-spacing: .02em; pointer-events: none; }
-  #version a { color: inherit; pointer-events: auto; }
+  .muted, .note { color: var(--muted); }
+  .note { font-size: 11px; }
 
-  #stage { grid-column: 1; grid-row: 1; position: relative; min-height: 0; display: grid; place-items: center; }
-  #preview { display: block; touch-action: none; border: 1px solid var(--line); }
-  #preview.layout { cursor: move; }
-  #empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted);
-    border: 1px dashed var(--line); border-radius: 10px; padding: 16px; }
-  #empty strong { display: block; color: var(--fg); font-size: 20px; font-weight: 500; margin-bottom: 6px; }
-  #drop { position: fixed; inset: 12px; border: 2px dashed var(--accent); border-radius: 10px; display: none; pointer-events: none; z-index: 5; }
-  body.dragging #drop { display: block; }
+  /* glass panels */
+  .ui { position: fixed; background: var(--glass); border: 1px solid var(--edge); border-radius: 16px; padding: 10px;
+    backdrop-filter: blur(24px) saturate(1.7); -webkit-backdrop-filter: blur(24px) saturate(1.7);
+    box-shadow: var(--shadow), inset 0 1px 0 var(--glass-hi); }
+  button { font: inherit; color: var(--fg); background: var(--btn); border: 1px solid transparent; border-radius: 10px;
+    padding: 6px 12px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
+  button:hover { background: var(--btn-hover); }
+  button.on { background: var(--accent-soft); color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:disabled:hover { background: var(--btn); }
+  button.icon { padding: 6px 10px; min-width: 34px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 18px; }
+  input[type=checkbox] { accent-color: var(--accent); }
+  input[type=number] { font: inherit; color: var(--fg); background: var(--btn); border: 1px solid transparent;
+    border-radius: 8px; padding: 4px 7px; width: 5.5em; font-variant-numeric: tabular-nums; }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  input[type=color] { width: 40px; height: 26px; padding: 2px; border: none; border-radius: 8px; background: var(--btn); cursor: pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type=color]::-webkit-color-swatch { border: none; border-radius: 6px; }
+  .row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 
-  #side { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 12px; overflow: auto; min-height: 0; }
-  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .form { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; }
-  .form > label:first-child, .form .lbl { color: var(--muted); }
-  .form .wide { grid-column: 2 / 4; }
-  .form .all { grid-column: 1 / -1; }
-  .form input[type=range] { width: 100%; }
-  output { font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; }
-  #info { color: var(--muted); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
-  .fold { cursor: pointer; user-select: none; }
-  .fold::after { content: ' ▾'; color: var(--muted); }
-  .folded .fold::after { content: ' ▸'; }
-  .folded > :not(.fold) { display: none !important; }
-  .form .fold { grid-column: 1 / -1; margin: 0; }
-  #layoutBox.droptarget { border-color: var(--accent); }
-  #layoutBody { display: contents; }
-  #layoutBody.off > :not(.keep) { opacity: .45; pointer-events: none; }
-  #prog { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  /* switch */
+  .switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch .track { width: 34px; height: 20px; border-radius: 10px; background: var(--btn-hover); position: relative; transition: background .2s; flex: none; }
+  .switch .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .2s; }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(14px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* toolbar */
+  #bar { top: 14px; right: 14px; display: flex; gap: 4px; align-items: center; padding: 5px; border-radius: 14px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100vw - 28px); z-index: 3; }
+  #bar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 4px 4px; }
+  #floatSwitch { padding: 4px 8px 4px 6px; border-radius: 10px; }
+  #floatSwitch:hover { background: var(--btn); }
+  #floatSwitch .lbl { font-weight: 500; }
+
+  /* status: progress and messages */
+  #status { top: 14px; left: 14px; max-width: min(460px, calc(100vw - 28px)); padding: 8px 12px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
+  #status:not(.busy):has(#result:empty) { display: none; }
+  #prog { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; min-width: 200px; }
   #prog div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
-  #result { font-variant-numeric: tabular-nums; word-break: break-all; }
+  #result { font-variant-numeric: tabular-nums; word-break: break-all; color: var(--muted); }
   #result.err { color: var(--accent); }
 
-  #strip { grid-column: 1; grid-row: 2; min-width: 0; }
-  #strip .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  /* settings menu */
+  #menu { top: 66px; right: 14px; width: min(320px, calc(100vw - 28px)); max-height: calc(100vh - 80px); overflow: auto; padding: 6px; z-index: 4; }
+  #menu.folded { display: none; }
+  #menu details { border-radius: 12px; }
+  #menu details + details { margin-top: 2px; }
+  #menu summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; border-radius: 10px; font-weight: 600; user-select: none; }
+  #menu summary::-webkit-details-marker { display: none; }
+  #menu summary:hover { background: var(--btn); }
+  #menu summary::after { content: '›'; margin-left: auto; color: var(--muted); transition: transform .2s; font-size: 15px; line-height: 1; }
+  #menu details[open] > summary::after { transform: rotate(90deg); }
+  #menu summary .ic { width: 18px; text-align: center; color: var(--muted); font-weight: 400; }
+  #menu .body { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px 10px; align-items: center; padding: 4px 10px 12px; }
+  #menu .body > label, #menu .body > .lbl { color: var(--muted); }
+  #menu .body .wide { grid-column: 1 / -1; }
+  #menu .body .span { grid-column: 2 / 4; }
+  #menu output { font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; color: var(--muted); }
+  #menu .seg { grid-column: 2 / 4; display: flex; gap: 2px; background: var(--btn); border-radius: 10px; padding: 2px; }
+  #menu .seg button { flex: 1; padding: 4px 6px; background: transparent; border-radius: 8px; }
+  #menu .seg button.on { background: var(--glass-hi); color: var(--fg); box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+  :root[data-theme="light"] #menu .seg button.on { background: #fff; }
+  #menu .seg button:hover:not(.on) { background: var(--btn-hover); }
+  #layoutBox.droptarget { box-shadow: inset 0 0 0 1px var(--accent); }
+  #layoutBody { display: contents; }
+  #layoutBody.off > :not(.keep) { opacity: .45; pointer-events: none; }
+  #version { font-size: 10px; color: var(--muted); padding: 8px 10px 4px; }
+  #version a { color: inherit; }
+
+  /* stage: the space between toolbar and filmstrip, set by layoutPanels() */
+  #stage { position: fixed; left: 14px; right: 14px; top: 66px; bottom: 200px; display: grid; place-items: center; }
+  #preview { display: block; touch-action: none; border-radius: 2px; box-shadow: var(--shadow); }
+  #preview.layout { cursor: move; }
+  #empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 16px; padding: 16px; }
+  #empty strong { display: block; color: var(--fg); font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  #drop { position: fixed; inset: 12px; border: 2px dashed var(--accent); border-radius: 16px; display: none; pointer-events: none; z-index: 5; }
+  body.dragging #drop { display: block; }
+
+  /* filmstrip */
+  #strip { left: 14px; right: 14px; bottom: 14px; padding: 6px 10px 6px; z-index: 2; }
+  #strip.folded > :not(.phead) { display: none !important; }
+  .phead { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -4px; cursor: pointer; user-select: none; border-radius: 10px; }
+  .phead:hover { background: var(--btn); }
+  .phead h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  .phead .count { color: var(--muted); font-size: 11px; font-weight: 400; flex: 1; font-variant-numeric: tabular-nums; }
+  .chev { color: var(--muted); transition: transform .2s; font-size: 11px; }
+  .folded .chev { transform: rotate(-90deg); }
   #tc { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
   #tc b { color: var(--fg); font-weight: 500; }
-  #overview { position: relative; height: 40px; margin: 4px 0 8px; border-radius: 3px; overflow: hidden;
-    background: var(--line); cursor: ew-resize; touch-action: none; user-select: none; }
+  #overview { position: relative; height: 40px; margin: 4px 0 8px; border-radius: 8px; overflow: hidden;
+    background: var(--btn); cursor: ew-resize; touch-action: none; user-select: none; }
   #overview canvas { display: block; width: 100%; height: 100%; }
   #playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none;
     box-shadow: 0 0 0 1px rgba(255,255,255,.85), 0 0 4px rgba(0,0,0,.6); }
   #playhead::before { content: ''; position: absolute; top: 0; left: -4px; border: 5px solid transparent; border-top-color: var(--accent); }
   #tiles { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; min-height: 108px; }
   #tiles:empty::before { content: 'Frames appear here'; color: var(--muted); align-self: center; padding-left: 4px; }
-  .tile { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 3px;
-    border: 1px solid transparent; border-radius: 5px; position: relative; }
-  .tile.sel { border-color: var(--line); }
+  .tile { flex: none; display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 4px;
+    border-radius: 10px; position: relative; }
+  .tile.sel { background: var(--btn); }
   .tile.cur .thumb { outline: 2px solid var(--accent); outline-offset: 1px; }
   .tile.before { box-shadow: -3px 0 0 var(--accent); }
   .tile.after { box-shadow: 3px 0 0 var(--accent); }
   .tile.dragging { opacity: .35; }
-  .thumb { position: relative; height: 64px; cursor: grab; border-radius: 2px; background: var(--line); }
-  .thumb canvas { display: block; height: 64px; border-radius: 2px; }
-  .thumb .n { position: absolute; left: 3px; top: 2px; font-size: 10px; color: #fff; text-shadow: 0 0 3px #000; font-variant-numeric: tabular-nums; }
-  .thumb .del { position: absolute; right: 2px; top: 2px; padding: 0 5px; line-height: 16px; font-size: 13px;
-    background: rgba(27,27,26,.75); color: #e8e6e1; border-color: transparent; }
-  .thumb .del:hover { color: var(--accent); }
+  .thumb { position: relative; height: 64px; cursor: grab; border-radius: 6px; background: var(--btn); }
+  .thumb canvas { display: block; height: 64px; border-radius: 6px; }
+  .thumb .n { position: absolute; left: 4px; top: 2px; font-size: 10px; color: #fff; text-shadow: 0 0 3px #000; font-variant-numeric: tabular-nums; }
+  .thumb .del { position: absolute; right: 3px; top: 3px; padding: 0 5px; line-height: 16px; font-size: 13px; border-radius: 6px;
+    background: rgba(20,20,22,.6); color: #f2f1ee; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .thumb .del:hover { color: var(--accent); background: rgba(20,20,22,.8); }
   .tile label { color: var(--muted); font-size: 11px; white-space: nowrap; }
-  .tile input[type=number] { width: 4.6em; font-size: 12px; }
+  .tile input[type=number] { width: 4.6em; font-size: 12px; padding: 2px 6px; }
   .tile .mv button { padding: 0 8px; }
 
+  /* video dialog */
   #dialog { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.35); z-index: 10; }
-  #dialog .ui { width: min(360px, calc(100vw - 32px)); background: var(--bg); }
+  #dialog .ui { position: relative; width: min(360px, calc(100vw - 32px)); padding: 14px; }
+  .form { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px 10px; align-items: center; }
+  .form > label { color: var(--muted); }
+  .form .wide { grid-column: 2 / 4; }
+  .form .all { grid-column: 1 / -1; }
+  .form h1 { font-size: 13px; font-weight: 600; margin: 0; }
   #vErr { color: var(--accent); }
 
   .touch-only { display: none; }
@@ -114,18 +163,13 @@
     .desk-only { display: none; }
   }
   @media (max-width: 760px) {
-    html, body { height: auto; }
-    body { display: flex; flex-direction: column; overflow: auto; padding: 22px 10px 10px; font-size: 14px; }
-    #stage { height: 55vh; flex: none; }
-    #strip { order: 2; }
-    #side { order: 3; overflow: visible; }
-    #version { right: 10px; }
+    html, body { font-size: 14px; }
+    #bar, #menu { right: 8px; } #status { left: 8px; } #strip { left: 8px; right: 8px; bottom: 8px; } #stage { left: 8px; right: 8px; }
+    #tiles { min-height: 96px; }
   }
 </style>
 </head>
 <body>
-<button id="bTheme" title="Light / dark"></button>
-<div id="version"><span id="versionText">v0.5</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
 <div id="drop"></div>
 
 <main id="stage">
@@ -138,59 +182,72 @@
   </div></div>
 </main>
 
-<aside id="side">
-  <section class="ui">
-    <h1>GIF Generator</h1>
-    <div id="info">No frames yet</div>
-    <div class="row">
-      <button id="bAdd" title="Add images or a video">+ Add</button>
-      <button id="bPlay" title="Space">Pause</button>
-      <button id="bBoom" title="Append the frames in reverse, without repeating the end frames">Boomerang</button>
-    </div>
-  </section>
+<div id="bar" class="ui">
+  <button id="bAdd" title="Add images or a video">+ Add</button>
+  <button id="bPlay" title="Space">Pause</button>
+  <button id="bBoom" title="Append the frames in reverse, without repeating the end frames">Boomerang</button>
+  <span class="sep"></span>
+  <label id="floatSwitch" class="switch" title="Place the GIF into a PNG / PDF layout"><input type="checkbox" id="useLayout"><span class="track"></span><span class="lbl">Layout</span></label>
+  <span class="sep"></span>
+  <button id="bExport" class="on" disabled>Export GIF</button>
+  <button id="bMenu" class="icon" aria-label="Settings" title="Settings">☰</button>
+</div>
 
-  <section class="ui form" id="timing">
-    <h1 class="fold">Timing</h1>
+<div id="status" class="ui">
+  <div id="prog" class="hidden"><div></div></div>
+  <span id="result"></span>
+</div>
+
+<div id="menu" class="ui folded">
+  <details open id="timing"><summary><span class="ic">◷</span>Timing</summary><div class="body">
     <label for="defDelay">Duration</label>
     <span class="row"><input id="defDelay" type="number" min="20" step="10"> ms</span>
     <button id="bApply" title="Set every frame to this duration">all</button>
-    <span class="all muted">New images get this duration. Video frames get 1000 / fps.</span>
+    <div class="wide note">New images get this duration. Video frames get 1000 / fps.</div>
     <label for="total">Length</label>
     <span class="row"><input id="total" type="number" min="0.1" step="0.1"> s</span>
     <button id="bLen" title="Scale every frame's duration so one loop lasts this long">set</button>
-    <span class="all muted">One loop, boomerang included. Frames keep their relative timing; GIFs count in 10 ms steps, 20 ms minimum.</span>
-    <label>Order</label>
-    <span class="row wide"><button id="bReverse">reverse</button><button id="bClear">remove all</button></span>
-  </section>
+    <div class="wide note">One loop, boomerang included. Frames keep their relative timing; GIFs count in 10 ms steps, 20 ms minimum.</div>
+    <span class="lbl">Order</span>
+    <span class="row span"><button id="bReverse">reverse</button><button id="bClear">remove all</button></span>
+  </div></details>
 
-  <section class="ui form" id="layoutBox">
-    <h1 class="fold">Layout</h1>
-    <label class="all"><input id="useLayout" type="checkbox"> Place into layout</label>
+  <details open id="layoutBox"><summary><span class="ic">▣</span>Layout</summary><div class="body">
+    <span class="lbl">Place into</span>
+    <label class="switch span"><input type="checkbox" id="useLayout2"><span class="track"></span><span class="note" id="layoutName">no layout</span></label>
     <div id="layoutBody" class="off">
-      <label class="lbl keep">File</label>
-      <span class="wide keep row"><button id="bLayout">choose PNG / PDF…</button><span id="layoutName" class="muted"></span></span>
-      <label class="lbl" for="scale" id="scaleLbl">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
-      <label class="lbl">Place</label>
-      <span class="wide row"><button id="bFill" title="Frame = the transparent opening, the picture covers it">fill opening</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></span>
-      <span class="all muted">PNG or PDF (page 1), transparent where the GIF shows. The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</span>
+      <span class="lbl keep">File</span>
+      <span class="span keep"><button id="bLayout">choose PNG / PDF…</button></span>
+      <label for="scale" id="scaleLbl">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
+      <span class="lbl">Place</span>
+      <div class="seg"><button id="bFill" title="Frame = the transparent opening, the picture covers it">fill</button><button id="bFit" title="Fit inside the transparent opening">fit</button><button id="bCenter">center</button></div>
+      <div class="wide note">PNG or PDF (page 1), transparent where the GIF shows. Drop a file here to use it. The layout sits on top. Drag the preview to move the GIF, drag its corners or scroll to resize.</div>
     </div>
-    <label class="lbl">Crop</label>
-    <span class="wide row"><button id="bCrop" title="Or double-click the preview. Esc to finish.">crop</button><button id="bCropReset" title="Picture fills the frame again, centered">reset</button></span>
-    <span class="all muted">Double-click the GIF to crop: drag to move the picture inside its frame, scroll or pinch to zoom, drag the frame's edges to crop them. Double-click again or Esc to finish.</span>
-    <label class="lbl" for="bg">Background</label><input id="bg" type="color" value="#ffffff"><span></span>
-  </section>
+  </div></details>
 
-  <section class="ui form" id="exportBox">
-    <h1 class="fold">Export</h1>
-    <span class="all muted" id="exportInfo"></span>
-    <button id="bExport" class="primary all" disabled>Export GIF</button>
-    <div id="prog" class="all hidden"><div></div></div>
-    <span id="result" class="all muted"></span>
-  </section>
-</aside>
+  <details open><summary><span class="ic">✂</span>Picture</summary><div class="body">
+    <span class="lbl">Crop</span>
+    <span class="row span"><button id="bCrop" title="Or double-click the preview. Esc to finish.">crop</button><button id="bCropReset" title="Picture fills the frame again, centered">reset</button></span>
+    <div class="wide note">Double-click the GIF to crop: drag to move the picture inside its frame, scroll or pinch to zoom, drag the frame's edges to crop them. Double-click again or Esc to finish.</div>
+    <label for="bg">Background</label><input id="bg" type="color" value="#ffffff"><span></span>
+  </div></details>
+
+  <details><summary><span class="ic">⤓</span>Export</summary><div class="body">
+    <div class="wide note" id="exportInfo"></div>
+    <div class="wide note">The GIF is encoded here in the browser. Messages and progress show top left.</div>
+  </div></details>
+
+  <details><summary><span class="ic">◐</span>View</summary><div class="body">
+    <span class="lbl">Theme</span>
+    <div class="seg" id="themeSeg"><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div>
+  </div></details>
+
+  <div id="version">GIF Generator <span id="versionText">v0.6</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></div>
+</div>
 
 <section id="strip" class="ui">
-  <div class="head"><h1>Filmstrip</h1><span id="tc"></span><span class="muted desk-only">drag to reorder · click to show · Del removes</span></div>
+  <div class="phead"><span class="chev">▾</span><h1>Filmstrip</h1><span id="info" class="count">No frames yet</span><span id="tc"></span></div>
+  <div class="note desk-only" style="padding: 0 4px">drag to reorder · click to show · Del removes</div>
   <div id="overview" class="hidden" title="Whole loop. Click or drag to scrub."><canvas></canvas><div id="playhead"></div></div>
   <div id="tiles"></div>
 </section>
@@ -424,17 +481,34 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.5 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.6 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
-  $('#bTheme').setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  for (const b of $('#themeSeg').children) b.classList.toggle('on', b.dataset.theme === t);
   store.set('gifgen.theme', t);
 }
 applyTheme(store.get('gifgen.theme') || 'dark');
-$('#bTheme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-for (const h of document.querySelectorAll('.fold')) h.onclick = () => h.parentElement.classList.toggle('folded');
+for (const b of $('#themeSeg').children) b.onclick = () => applyTheme(b.dataset.theme);
+
+// ---- glass panels: settings menu, folding filmstrip, stage between toolbar and filmstrip ----
+const bar = $('#bar'), menu = $('#menu'), bMenu = $('#bMenu');
+function toggleMenu(open = menu.classList.contains('folded')) {
+  menu.style.top = bar.getBoundingClientRect().bottom + 8 + 'px';
+  menu.classList.toggle('folded', !open);
+  bMenu.classList.toggle('on', open);
+}
+bMenu.onclick = () => toggleMenu();
+for (const h of document.querySelectorAll('.phead')) h.onclick = () => h.parentElement.classList.toggle('folded');
+function layoutPanels() {
+  const st = $('#stage').style, b = bar.getBoundingClientRect(), s = $('#strip').getBoundingClientRect();
+  st.top = b.bottom + 10 + 'px'; st.bottom = innerHeight - s.top + 10 + 'px';
+  if (!menu.classList.contains('folded')) menu.style.top = b.bottom + 8 + 'px';
+}
+new ResizeObserver(layoutPanels).observe(bar);
+new ResizeObserver(layoutPanels).observe($('#strip'));
+addEventListener('resize', layoutPanels);
 
 // ---- helpers ----
 const isVideo = f => f.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|ogv)$/i.test(f.name);
@@ -625,7 +699,7 @@ async function setLayout(file) {
     } else img = await decodeImage(file);
     S.layout?.img.close?.();
     S.layout = { img, w: img.width, h: img.height, name, hole: findHole(img) };
-    S.useLayout = true; $('#useLayout').checked = true;
+    S.useLayout = true;
     place('fill'); changed();
     if (!S.layout.hole) say('This layout has no transparent area, so the GIF is hidden under it. Use a PNG or PDF with a transparent opening.', true);
   } catch (err) { console.warn(err); say('Could not read that layout: ' + err.message, true); }
@@ -954,7 +1028,8 @@ function changed() {
   canvas.classList.toggle('layout', layoutOn() || S.crop);
   if (!layoutOn() && !S.crop) canvas.style.cursor = '';
   $('#layoutBody').classList.toggle('off', !S.useLayout);
-  $('#layoutName').textContent = S.layout ? `${S.layout.name} · ${S.layout.w}×${S.layout.h}` : '';
+  $('#useLayout').checked = $('#useLayout2').checked = S.useLayout;
+  $('#layoutName').textContent = S.layout ? `${S.layout.name} · ${S.layout.w}×${S.layout.h}` : 'no layout';
   $('#bExport').disabled = !S.frames.length;
   renderStrip(); sizePreview(); updateInfo(); syncScale();
 }
@@ -1011,7 +1086,7 @@ $('#bAdd').onclick = $('#pick').onclick = () => $('#file').click();
 $('#file').onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
 $('#bLayout').onclick = () => $('#layoutFile').click();
 $('#layoutFile').onchange = e => { if (e.target.files[0]) setLayout(e.target.files[0]); e.target.value = ''; };
-$('#useLayout').onchange = e => {
+$('#useLayout').onchange = $('#useLayout2').onchange = e => {
   S.useLayout = e.target.checked;
   if (S.useLayout && !S.layout) $('#layoutFile').click();
   changed();
@@ -1039,6 +1114,7 @@ addEventListener('keydown', e => {
   }
   else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && interactive()) { e.preventDefault(); const r = target(); setTarget({ ...r, y: r.y + (e.key === 'ArrowDown' ? 10 : -10) * cssToScene() }); }
   else if (e.key === 'Escape' && S.crop) setCrop(false);
+  else if (e.key === 'Escape' && !menu.classList.contains('folded')) toggleMenu(false);
   else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); removeFrame(S.sel); }
 });
 
@@ -1191,7 +1267,7 @@ async function encodeAll(enc, s, onProgress) {
   const done = await enc.call({ type: 'end' });
   return { blob: new Blob(done.parts, { type: 'image/gif' }) };
 }
-function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
+function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#status').classList.toggle('busy', p !== null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
 $('#bExport').onclick = async () => {
   if (!seq.length) return;
   const btn = $('#bExport'); btn.disabled = true;
