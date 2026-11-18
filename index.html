@@ -58,10 +58,10 @@
   button.icon { padding: 0; width: 36px; height: 36px; }
   button.soft { background: var(--fill); }
   button.soft:hover { background: var(--fill-hi); }
-  button.primary, button.primary.on { color: #fff; font-weight: 600;
-    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 55%), linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 4px 14px rgba(255,80,60,.35), inset 0 1px 0 rgba(255,255,255,.4); }
-  button.primary:hover { filter: brightness(1.08); }
+  button.primary, button.primary.on { color: var(--fg); font-weight: 600;
+    background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 60%), var(--fill-hi);
+    box-shadow: 0 2px 10px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px var(--line); }
+  button.primary:hover { background: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.04) 60%), var(--fill-hi); }
   button.primary:disabled { background: var(--fill); color: var(--muted); box-shadow: none; filter: none; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -140,9 +140,9 @@
   #preview { display: block; touch-action: none; border-radius: 4px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
   #preview.layout { cursor: move; }
   #empty { position: relative; text-align: center; padding: 36px 40px 30px; display: grid; justify-items: center; gap: 6px; max-width: calc(100vw - 32px); }
-  #empty .big { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; margin-bottom: 8px; color: #fff;
-    background: linear-gradient(180deg, rgba(255,255,255,.25), rgba(255,255,255,0) 60%), linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 8px 24px rgba(255,80,60,.35), inset 0 1px 0 rgba(255,255,255,.45); }
+  #empty .big { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; margin-bottom: 8px; color: var(--fg);
+    background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,0) 60%), var(--fill-hi);
+    box-shadow: 0 4px 16px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 0 1px var(--line); }
   #empty .big svg { width: 28px; height: 28px; }
   #empty strong { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
   #empty .row { justify-content: center; gap: 8px; margin: 14px 0 6px; }
@@ -184,7 +184,7 @@
   .tile.before { box-shadow: -3px 0 0 var(--accent); }
   .tile.after { box-shadow: 3px 0 0 var(--accent); }
   .tile.dragging { opacity: .35; }
-  .thumb { position: relative; height: 64px; cursor: grab; border-radius: 9px; background: var(--fill); }
+  .thumb { position: relative; height: 64px; cursor: grab; border-radius: 9px; background: var(--framebg, #fff); }
   .thumb canvas { display: block; height: 64px; border-radius: 9px; }
   .thumb .n { position: absolute; left: 5px; top: 3px; font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); font-variant-numeric: tabular-nums; }
   .thumb .del { position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; padding: 0; font-size: 14px; line-height: 1;
@@ -253,7 +253,7 @@
       <button id="pickDir" class="soft"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
     </div>
     <span class="note desk-only">or paste with ⌘V</span>
-    <span class="demo-only">Example · add your frames to replace it</span>
+    <span class="demo-only">Example · transparent, try a background in ⋯ · add your frames to replace it</span>
   </div>
 </main>
 
@@ -979,6 +979,7 @@ function drawOverview() {
   ov.width = Math.round(W * devicePixelRatio); ov.height = Math.round(H * devicePixelRatio);
   const g = ov.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   g.imageSmoothingQuality = 'high';
+  g.fillStyle = S.bg; g.fillRect(0, 0, W, H);  // transparent frames show the background, as in the GIF
   seq.forEach((f, i) => {
     const x0 = ovStart[i] / ovTotal * W, x1 = (ovStart[i] + f.delay) / ovTotal * W, w = x1 - x0;
     const t = f.thumb, k = Math.max(w / t.width, H / t.height), sw = w / k, sh = H / k;  // cover the slot
@@ -1242,7 +1243,7 @@ $('#scale').oninput = () => {
   const now = cropping() ? S.ct.s : r.w / S.box.w;
   scaleAround(cropping() ? (F => ({ x: F.x + F.w / 2, y: F.y + F.h / 2 }))(frameRect()) : { x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / now);
 };
-$('#bg').oninput = e => { S.bg = e.target.value; dirty = true; };
+$('#bg').oninput = e => { S.bg = e.target.value; document.documentElement.style.setProperty('--framebg', S.bg); drawOverview(); dirty = true; };
 
 addEventListener('keydown', e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || !$('#dialog').classList.contains('hidden')) return;
@@ -1463,37 +1464,31 @@ $('#bExport').onclick = async () => {
   progress(null); btn.disabled = !S.frames.length; if (wasPlaying) setPlaying(true);
 };
 
-// ---- example on startup: a classic bouncing ball, 10 frames, squash on the ground, stretch in fast motion ----
+// ---- example on startup: a ball falling in 5 frames (top → squash on the ground), played as boomerang ----
+// Turning boomerang off shows why it is there: the ball then jumps back to the top.
 async function addDemo() {
-  const W = 640, H = 480, GROUND = 400, R = 46, RISE = 250, N = 10;
+  const W = 640, H = 480, GROUND = 400, R = 46, RISE = 250, N = 5;
   for (let i = 0; i < N; i++) {
-    const t = i / N, h = 1 - (2 * t - 1) ** 2, v = Math.abs(4 * (1 - 2 * t));  // height 0..1, speed
+    const t = 0.5 + i / (2 * (N - 1)), h = 1 - (2 * t - 1) ** 2, v = 4 * (2 * t - 1);  // from the top (h 1) down to the ground (h 0); speed
     let sx, sy;
-    if (i === 0) { sx = 1.38; sy = 0.66; }                                        // squash on contact
-    else { sy = 1 + 0.07 * v; sx = 1 / Math.sqrt(sy); }                           // stretch when fast
+    if (i === N - 1) { sx = 1.5; sy = 0.55; }                                    // squash on contact
+    else { sy = 1 + 0.1 * v; sx = 1 / Math.sqrt(sy); }                           // stretch when fast
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d');
-    g.fillStyle = '#f3ede2'; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#e6dccb'; g.fillRect(0, GROUND, W, H - GROUND);
-    g.fillStyle = '#2a2622'; g.fillRect(0, GROUND - 2, W, 4);
-    g.fillStyle = `rgba(42,38,34,${0.28 * (1 - 0.7 * h)})`;                        // shadow shrinks with height
-    g.beginPath(); g.ellipse(W / 2, GROUND + 6, R * 1.25 * (1 - 0.45 * h) * (i ? 1 : 1.25), 7 * (1 - 0.4 * h), 0, 0, 7); g.fill();
+    g.fillStyle = '#000'; g.fillRect(0, GROUND, W, 4);                             // ground line
     const bottom = GROUND - h * RISE;
     g.save(); g.translate(W / 2, bottom - R * sy); g.scale(sx, sy);
-    g.beginPath(); g.arc(0, 0, R, 0, 7);
-    g.fillStyle = '#e9442e'; g.fill();
-    g.lineWidth = 4 / Math.sqrt(sx * sy); g.strokeStyle = '#2a2622'; g.stroke();
-    g.fillStyle = 'rgba(0,0,0,.14)'; g.beginPath(); g.arc(6, 8, R - 8, 0.15 * Math.PI, 0.95 * Math.PI); g.arc(-4, -2, R - 6, 0.85 * Math.PI, 0.2 * Math.PI, true); g.fill();
-    g.fillStyle = '#fff'; g.beginPath(); g.ellipse(-R * 0.38, -R * 0.42, R * 0.2, R * 0.12, -0.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill();
     g.restore();
-    addFrame(await createImageBitmap(c), `ball-${String(i + 1).padStart(2, '0')}.png`, 70);
+    addFrame(await createImageBitmap(c), `ball-${String(i + 1).padStart(2, '0')}.png`, 80);
   }
-  S.demo = true; changed();
+  S.demo = true; S.boomerang = true; $('#bBoom').classList.add('on'); changed();
 }
 function clearDemo() {
   if (!S.demo) return;
   for (const f of S.frames) f.bmp.close?.();
   S.frames = []; S.box = null; S.sel = null; S.demo = false;
+  S.boomerang = false; $('#bBoom').classList.remove('on');  // boomerang was part of the example
 }
 changed();
 addDemo();

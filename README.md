@@ -4,7 +4,7 @@ A browser-based GIF maker. Drop images, a folder, a ZIP or a video into the page
 
 **Open it:** https://ibagaturiya.github.io/gif-generator/
 
-- **Example:** on opening, a 10-frame bouncing ball (squash on the ground, stretch in the air) is loaded, drawn in code. Add your own frames and it is replaced; you can also edit or export it.
+- **Example:** on opening, a ball falls in 5 frames, from the top down to a squash on the ground, drawn in code on a transparent background. Boomerang is on, so it bounces back up; turn it off to see why it's there (the ball jumps back to the top). Add your own frames and it is replaced (boomerang goes off with it).
 - **Images and video:** drop, paste (⌘V / Ctrl+V) or choose files. Images are sorted by file name.
 - **Folders and ZIPs:** drop a whole folder (subfolders included) or choose one, or add a `.zip`; it is unpacked in the browser by its own reader (no library). Files are sorted by their path; hidden files and `__MACOSX` are skipped. Video frames are pulled out in the browser at the frame rate you pick, with an optional time range.
 - **Filmstrip:** an overview of the whole loop (frame widths by duration) with a playhead; click or drag it to scrub. Below it, drag frames to reorder, × to remove, set each frame's duration in ms.
