@@ -139,6 +139,10 @@
   #stage { position: fixed; left: 14px; right: 14px; top: 70px; bottom: 200px; display: grid; place-items: center; }
   #preview { display: block; touch-action: none; border-radius: 4px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
   #preview.layout { cursor: move; }
+  .clearbg #preview, .clearbg .thumb { background-color: #fff;
+    background-image: conic-gradient(#d4d4d4 25%, #fff 0 50%, #d4d4d4 0 75%, #fff 0); background-size: 16px 16px; }
+  .clearbg .thumb { background-size: 10px 10px; }
+  .clearbg #bg { opacity: .45; }
   #empty { position: relative; text-align: center; padding: 36px 40px 30px; display: grid; justify-items: center; gap: 6px; max-width: calc(100vw - 32px); }
   #empty .big { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; margin-bottom: 8px; color: var(--fg);
     background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,0) 60%), var(--fill-hi);
@@ -165,6 +169,12 @@
   .phead { display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 0 -4px; cursor: pointer; user-select: none; border-radius: 999px; }
   .phead:hover { background: var(--fill); }
   .phead h1 { font-size: 13px; font-weight: 600; margin: 0; }
+  .phead { flex-wrap: wrap; row-gap: 4px; }
+  .timing { display: flex; align-items: center; gap: 6px; cursor: default; font-size: 12px; }
+  .timing label, .timing .u { color: var(--muted); }
+  .timing input[type=number] { width: 4.6em; padding: 3px 7px; }
+  .timing button { padding: 4px 11px; font-size: 12px; }
+  .timing .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
   .phead .count { color: var(--muted); font-size: 12px; flex: 1; font-variant-numeric: tabular-nums; }
   .chev { color: var(--muted); transition: transform .25s; width: 14px; height: 14px; }
   .folded .chev { transform: rotate(-90deg); }
@@ -274,14 +284,8 @@
 </div>
 
 <div id="menu" class="ui folded"><div class="scroll">
-  <section id="timing"><h2>Timing</h2><div class="body">
-    <label for="defDelay">Each frame</label>
-    <span class="row"><input id="defDelay" type="number" min="20" step="10"> ms</span>
-    <button id="bApply" class="soft" title="Set every frame to this duration">Apply</button>
-    <label for="total">Whole loop</label>
-    <span class="row"><input id="total" type="number" min="0.1" step="0.1"> s</span>
-    <button id="bLen" class="soft" title="Stretch or squeeze all frames so one loop lasts this long">Set</button>
-    <span class="lbl">Frames</span>
+  <section id="timing"><h2>Frames</h2><div class="body">
+    <span class="lbl">Order</span>
     <span class="row span"><button id="bReverse" class="soft">Reverse</button><button id="bClear" class="soft">Remove all</button></span>
   </div></section>
 
@@ -300,7 +304,8 @@
   <section><h2>Picture</h2><div class="body">
     <span class="lbl">Crop</span>
     <span class="row span"><button id="bCrop" class="soft" title="Or double-click the preview · Esc to finish">Crop</button><button id="bCropReset" class="soft" title="Fill the frame again, centered">Reset</button></span>
-    <label for="bg">Background</label><span class="span"><input id="bg" type="color" value="#ffffff"></span>
+    <span class="lbl">Background</span>
+    <span class="row span" style="gap:12px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"></span>
   </div></section>
 
   <section><h2>Appearance</h2><div class="body">
@@ -315,7 +320,15 @@
 </div></div>
 
 <section id="strip" class="ui">
-  <div class="phead"><svg class="i chev"><use href="#i-chev"/></svg><h1>Frames</h1><span id="info" class="count">None yet</span><span id="tc"></span></div>
+  <div class="phead"><svg class="i chev"><use href="#i-chev"/></svg><h1>Frames</h1><span id="info" class="count">None yet</span>
+    <span class="timing">
+      <label for="defDelay">Each frame</label><input id="defDelay" type="number" min="20" step="10"><span class="u">ms</span>
+      <button id="bApply" class="soft" title="Set every frame to this duration">Apply</button>
+      <span class="sep"></span>
+      <label for="total">Whole loop</label><input id="total" type="number" min="0.1" step="0.1"><span class="u">s</span>
+      <button id="bLen" class="soft" title="Stretch or squeeze all frames so one loop lasts this long">Set</button>
+    </span>
+    <span id="tc"></span></div>
   <div id="overview" class="hidden" title="Click or drag to scrub"><canvas></canvas><div id="playhead"></div></div>
   <div id="tiles" title="Drag to reorder · click to show · Del removes"></div>
 </section>
@@ -339,7 +352,8 @@
 <script id="encoderSrc" type="javascript/worker">
 // GIF encoder, runs in a Web Worker. One global palette plus a transparent index; the first frame
 // is written whole, every later frame only as the rectangle of pixels that changed, with unchanged
-// pixels transparent. Messages are answered in order.
+// pixels transparent. With `alpha` (transparent background) every frame is written whole instead.
+// Messages are answered in order.
 'use strict';
 const BAYER = (() => {  // 8×8 ordered dither thresholds, -0.5…0.5
   let m = [[0]];
@@ -391,7 +405,7 @@ function buildPalette(px, n) {
 }
 
 // ---- state ----
-let W, H, pal, nPal, tIdx, bits, minCode, cache, prev, dither, spread, tol2, out;
+let W, H, pal, nPal, tIdx, bits, minCode, cache, prev, dither, spread, tol2, out, alpha;
 function nearest(r, g, b) {
   let best = 0, bd = Infinity;
   for (let i = 0; i < nPal; i++) {
@@ -412,6 +426,7 @@ function quantize(rgba, rx, ry, rw, rh) {
     const brow = ((ry + y) & 7) * 8;
     for (let x = 0; x < rw; x++) {
       const p = y * rw + x, s = p * 4, r = rgba[s], g = rgba[s + 1], b = rgba[s + 2];
+      if (alpha && rgba[s + 3] < 128) { q[p] = tIdx; continue; }  // see-through
       let i = look(r, g, b);
       if (dither) {  // leave colors that the palette already has (flat layout areas, text) undithered
         const e = Math.abs(r - pal[3 * i]) + Math.abs(g - pal[3 * i + 1]) + Math.abs(b - pal[3 * i + 2]);
@@ -458,8 +473,8 @@ function lzw(idx) {
   while (shift > 0) { block[bl++] = cur & 255; if (bl === 255) flushBlock(); cur >>>= 8; shift -= 8; }
   flushBlock(); out.byte(0);
 }
-function writeFrame(idx, x, y, w, h, cs, transparent) {
-  out.byte(0x21); out.byte(0xf9); out.byte(4); out.byte(1 << 2 | (transparent ? 1 : 0));  // disposal: keep
+function writeFrame(idx, x, y, w, h, cs, transparent, disposal = 1) {
+  out.byte(0x21); out.byte(0xf9); out.byte(4); out.byte(disposal << 2 | (transparent ? 1 : 0));  // 1: keep, 2: clear to transparent
   out.word(cs); out.byte(transparent ? tIdx : 0); out.byte(0);
   out.byte(0x2c); out.word(x); out.word(y); out.word(w); out.word(h); out.byte(0);
   lzw(idx);
@@ -469,7 +484,7 @@ function start(m) {
   ({ W, H } = m); pal = m.palette; nPal = pal.length / 3; tIdx = nPal;
   bits = Math.max(1, Math.ceil(Math.log2(nPal + 1))); minCode = Math.max(2, bits);
   cache = new Int16Array(1 << 18).fill(-1); prev = new Uint8Array(W * H);
-  dither = m.dither; spread = m.strength * 255 / Math.cbrt(nPal); tol2 = m.tol * m.tol;
+  alpha = !!m.alpha; dither = m.dither; spread = m.strength * 255 / Math.cbrt(nPal); tol2 = m.tol * m.tol;
   out = new Out(m.keep);
   out.bytes([71, 73, 70, 56, 57, 97]);  // GIF89a
   out.word(W); out.word(H); out.byte(0x80 | 0x70 | (bits - 1)); out.byte(0); out.byte(0);
@@ -478,6 +493,11 @@ function start(m) {
 }
 function frame(m) {
   const { rgba, x: rx, y: ry, w: rw, h: rh } = m, before = out.size, cs = Math.max(2, Math.round(m.delay / 10));
+  if (alpha) {  // transparent GIF: changed pixels can't be stored alone (a pixel may turn see-through), so every frame is whole and cleared after it
+    if (m.prime) return 0;
+    writeFrame(quantize(rgba, rx, ry, rw, rh), rx, ry, rw, rh, cs, true, 2);
+    return out.size - before;
+  }
   const q = quantize(rgba, rx, ry, rw, rh);
   if (m.full) {
     prev.set(q);
@@ -543,7 +563,7 @@ const S = {
   fr: { x: 0, y: 0, w: 1, h: 1 },  // GIF frame inside the layout, layout px; the GIF is clipped to it
   ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
   crop: false,                     // crop mode: gestures move the picture, not the frame
-  bg: '#ffffff', delay: DEFAULT_DELAY,
+  bg: '#ffffff', clear: true, delay: DEFAULT_DELAY,  // clear: transparent background
 };
 let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
 
@@ -570,7 +590,7 @@ function toggleMenu(open = menu.classList.contains('folded')) {
   bMenu.classList.toggle('on', open);
 }
 bMenu.onclick = () => toggleMenu();
-for (const h of document.querySelectorAll('.phead')) h.onclick = () => h.parentElement.classList.toggle('folded');
+for (const h of document.querySelectorAll('.phead')) h.onclick = e => { if (!e.target.closest('.timing')) h.parentElement.classList.toggle('folded'); };
 function layoutPanels() {
   const st = $('#stage').style, b = bar.getBoundingClientRect(), s = $('#strip').getBoundingClientRect();
   st.top = b.bottom + 10 + 'px'; st.bottom = innerHeight - s.top + 10 + 'px';
@@ -907,7 +927,8 @@ function syncScale() {
 function drawScene(g, W, H, f, preview, opts = {}) {
   const sc = scene(), k = W / sc.w;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = S.bg; g.fillRect(0, 0, W, H);
+  if (S.clear) g.clearRect(0, 0, W, H);  // the preview shows a checkerboard behind (CSS)
+  else { g.fillStyle = S.bg; g.fillRect(0, 0, W, H); }
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.setTransform(k, 0, 0, k, 0, 0);
   const F = frameRect(), C = contentRect(F);
@@ -968,6 +989,12 @@ function highlight() {
 let tilesTouched = 0;
 for (const ev of ['wheel', 'pointerdown', 'touchstart']) $('#tiles').addEventListener(ev, () => tilesTouched = performance.now(), { passive: true });
 
+function checker(g) {  // grey and white squares, as in image editors
+  const c = document.createElement('canvas'); c.width = c.height = 12;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 12, 12);
+  x.fillStyle = '#d4d4d4'; x.fillRect(0, 0, 6, 6); x.fillRect(6, 6, 6, 6);
+  return g.createPattern(c, 'repeat');
+}
 // ---- overview: the whole loop, frame widths by duration, playhead, scrubbing ----
 const ov = $('#overview canvas');
 let ovStart = [], ovTotal = 0, lastTc = '';
@@ -979,7 +1006,7 @@ function drawOverview() {
   ov.width = Math.round(W * devicePixelRatio); ov.height = Math.round(H * devicePixelRatio);
   const g = ov.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   g.imageSmoothingQuality = 'high';
-  g.fillStyle = S.bg; g.fillRect(0, 0, W, H);  // transparent frames show the background, as in the GIF
+  g.fillStyle = S.clear ? checker(g) : S.bg; g.fillRect(0, 0, W, H);  // transparent frames show the background, as in the GIF
   seq.forEach((f, i) => {
     const x0 = ovStart[i] / ovTotal * W, x1 = (ovStart[i] + f.delay) / ovTotal * W, w = x1 - x0;
     const t = f.thumb, k = Math.max(w / t.width, H / t.height), sw = w / k, sh = H / k;  // cover the slot
@@ -1243,7 +1270,15 @@ $('#scale').oninput = () => {
   const now = cropping() ? S.ct.s : r.w / S.box.w;
   scaleAround(cropping() ? (F => ({ x: F.x + F.w / 2, y: F.y + F.h / 2 }))(frameRect()) : { x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / now);
 };
-$('#bg').oninput = e => { S.bg = e.target.value; document.documentElement.style.setProperty('--framebg', S.bg); drawOverview(); dirty = true; };
+function setBg(clear, color = S.bg) {
+  S.clear = clear; S.bg = color;
+  $('#bgClear').checked = clear;
+  document.documentElement.classList.toggle('clearbg', clear);
+  document.documentElement.style.setProperty('--framebg', color);
+  palettes.clear(); sampleCache = null; drawOverview(); dirty = true;
+}
+$('#bg').oninput = e => setBg(false, e.target.value);
+$('#bgClear').onchange = e => setBg(e.target.checked);
 
 addEventListener('keydown', e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || !$('#dialog').classList.contains('hidden')) return;
@@ -1332,7 +1367,7 @@ function concrete(step) {
   const F = frameRect(), k = s.W / scene().w;
   const x0 = Math.max(0, Math.floor(F.x * k)), y0 = Math.max(0, Math.floor(F.y * k));
   const x1 = Math.min(s.W, Math.ceil((F.x + F.w) * k)), y1 = Math.min(s.H, Math.ceil((F.y + F.h) * k));
-  s.region = layoutOn() ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
+  s.region = layoutOn() && !S.clear ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
   return s;
 }
 const exportCanvas = document.createElement('canvas'), picCanvas = document.createElement('canvas');
@@ -1343,7 +1378,7 @@ function renderExport(s, f) {
   // picture at lower resolution, enlarged without smoothing (compresses far better); layout stays sharp
   const p = picCanvas; p.width = Math.max(1, Math.round(s.W * s.pic)); p.height = Math.max(1, Math.round(s.H * s.pic));
   drawScene(p.getContext('2d'), p.width, p.height, f, false, { layout: false });
-  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(p, 0, 0, s.W, s.H);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, s.W, s.H); g.imageSmoothingEnabled = false; g.drawImage(p, 0, 0, s.W, s.H);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   if (layoutOn()) g.drawImage(S.layout.img, 0, 0, s.W, s.H);
   return g;
@@ -1352,7 +1387,8 @@ const regionOf = (g, r) => g.getImageData(r.x, r.y, r.w, r.h).data;
 function samplePixels(list, target) {  // rgb samples from several pixel arrays
   const total = list.reduce((a, d) => a + d.length / 4, 0), step = Math.max(1, Math.floor(total / target));
   const px = new Uint8Array(Math.ceil(total / step) * 3 + 3); let n = 0;
-  for (const d of list) for (let i = 0; i < d.length; i += 4 * step) { px[n++] = d[i]; px[n++] = d[i + 1]; px[n++] = d[i + 2]; }
+  for (const d of list) for (let i = 0; i < d.length; i += 4 * step) { if (d[i + 3] < 128) continue; px[n++] = d[i]; px[n++] = d[i + 1]; px[n++] = d[i + 2]; }
+  if (!n) { px.fill(0, 0, 3); n = 3; }  // all see-through: one dummy color
   return px.slice(0, n);
 }
 function samplePositions(N) {  // frames i, i+1 spread over the loop
@@ -1379,7 +1415,7 @@ async function paletteFor(enc, colors) {
   }
   return palettes.get(colors);
 }
-const encSettings = (s, palette, keep) => ({ type: 'start', W: s.W, H: s.H, palette: palette.slice(), dither: !!DITHER, strength: DITHER_STRENGTH, tol: s.tol, keep });
+const encSettings = (s, palette, keep) => ({ type: 'start', W: s.W, H: s.H, palette: palette.slice(), dither: !!DITHER, strength: DITHER_STRENGTH, tol: s.tol, keep, alpha: S.clear });
 async function estimate(enc, step) {
   const s = concrete(step), palette = await paletteFor(enc, s.colors), smp = renderSamples(s);
   const head = (await enc.call(encSettings(s, palette, false))).size;
@@ -1490,6 +1526,7 @@ function clearDemo() {
   S.frames = []; S.box = null; S.sel = null; S.demo = false;
   S.boomerang = false; $('#bBoom').classList.remove('on');  // boomerang was part of the example
 }
+setBg(S.clear);
 changed();
 addDemo();
 </script>
