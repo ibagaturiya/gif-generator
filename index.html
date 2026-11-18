@@ -144,7 +144,11 @@
   .clearbg #preview, .clearbg .thumb { background-color: #fff;
     background-image: conic-gradient(#d4d4d4 25%, #fff 0 50%, #d4d4d4 0 75%, #fff 0); background-size: 16px 16px; }
   .clearbg .thumb { background-size: 10px 10px; }
-  .clearbg #bg { opacity: .45; }
+  .clearbg #bg, .imgbg #bg { opacity: .45; }
+  .clearbg #opacity, .clearbg #opacityOut, .clearbg label[for=opacity] { opacity: .4; }
+  .clearbg #opacity { pointer-events: none; }
+  .clearbg .thumb canvas { opacity: 1; }
+  .imgbg .thumb { background: var(--framebgimg) center / cover; }
   #empty { position: relative; text-align: center; padding: 36px 40px 30px; display: grid; justify-items: center; gap: 6px; max-width: calc(100vw - 32px); }
   #empty .big { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; margin-bottom: 8px; color: var(--fg);
     background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,0) 60%), var(--fill-hi);
@@ -175,7 +179,7 @@
   .timing { display: flex; align-items: center; gap: 6px; cursor: default; font-size: 12px; }
   .timing label, .timing .u { color: var(--muted); }
   .timing input[type=number] { width: 4.6em; padding: 3px 7px; }
-  .timing button { padding: 4px 11px; font-size: 12px; }
+  .timing #fps { width: 4em; }
   .timing .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
   .phead .count { color: var(--muted); font-size: 12px; flex: 1; font-variant-numeric: tabular-nums; }
   .chev { color: var(--muted); transition: transform .25s; width: 14px; height: 14px; }
@@ -187,17 +191,19 @@
   #overview canvas { display: block; width: 100%; height: 100%; }
   #playhead { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #fff; border-radius: 2px; pointer-events: none;
     box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 8px rgba(0,0,0,.5); }
-  #tiles { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 4px; min-height: 104px; scrollbar-width: thin; }
+  #tiles { display: flex; gap: 6px; overflow-x: auto; padding: 2px 6px 4px; min-height: 104px; scrollbar-width: thin; }
   #tiles:empty::before { content: 'Your frames will appear here'; color: var(--muted); align-self: center; margin: 0 auto; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 5px; align-items: center; padding: 5px; border-radius: 14px; position: relative; transition: background .2s; }
   .tile:hover { background: var(--fill); }
   .tile.sel { background: var(--fill-hi); }
   .tile.cur .thumb { box-shadow: 0 0 0 2px var(--accent); }
-  .tile.before { box-shadow: -3px 0 0 var(--accent); }
-  .tile.after { box-shadow: 3px 0 0 var(--accent); }
+  .tile.before::before, .tile.after::before { content: ''; position: absolute; top: 2px; bottom: 2px; width: 3px; border-radius: 2px;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent); pointer-events: none; }
+  .tile.before::before { left: -4.5px; }   /* straight line in the gap where the frame will go */
+  .tile.after::before { right: -4.5px; }
   .tile.dragging { opacity: .35; }
   .thumb { position: relative; height: 64px; cursor: grab; border-radius: 9px; background: var(--framebg, #fff); }
-  .thumb canvas { display: block; height: 64px; border-radius: 9px; }
+  .thumb canvas { opacity: var(--framealpha, 1); display: block; height: 64px; border-radius: 9px; }
   .thumb .n { position: absolute; left: 5px; top: 3px; font-size: 10px; font-weight: 600; color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); font-variant-numeric: tabular-nums; }
   .thumb .del { position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; padding: 0; font-size: 14px; line-height: 1;
     background: rgba(20,20,24,.55); color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 0; transition: opacity .15s; }
@@ -307,7 +313,9 @@
     <span class="lbl">Crop</span>
     <span class="row span"><button id="bCrop" class="soft" title="Or double-click the preview · Esc to finish">Crop</button><button id="bCropReset" class="soft" title="Fill the frame again, centered">Reset</button></span>
     <span class="lbl">Background</span>
-    <span class="row span" style="gap:12px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"></span>
+    <span class="row span" style="gap:10px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"><button id="bBgImg" class="soft" title="An image behind the frames, filling the whole GIF">Image…</button></span>
+    <span id="bgImgRow" class="row wide hidden"><span class="lbl" style="width:66px"></span><span id="bgImgName" class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="bBgImgDel" class="soft" title="Remove the background image">Remove</button></span>
+    <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
   </div></section>
 
   <section><h2>Appearance</h2><div class="body">
@@ -324,11 +332,9 @@
 <section id="strip" class="ui">
   <div class="phead"><svg class="i chev"><use href="#i-chev"/></svg><h1>Frames</h1><span id="info" class="count">None yet</span>
     <span class="timing">
-      <label for="defDelay">Each frame</label><input id="defDelay" type="number" min="20" step="10"><span class="u">ms</span>
-      <button id="bApply" class="soft" title="Set every frame to this duration">Apply</button>
+      <label for="defDelay" title="Sets every frame to this duration">Each frame</label><input id="defDelay" type="number" min="20" step="10" placeholder="mixed" title="Sets every frame to this duration"><span class="u">ms =</span><input id="fps" type="number" min="1" max="50" step="1" placeholder="mixed" title="Frames per second. GIFs count in 10 ms steps, so e.g. 24 fps becomes 25 (40 ms); 50 fps at most"><span class="u">fps</span>
       <span class="sep"></span>
-      <label for="total">Whole loop</label><input id="total" type="number" min="0.1" step="0.1"><span class="u">s</span>
-      <button id="bLen" class="soft" title="Stretch or squeeze all frames so one loop lasts this long">Set</button>
+      <label for="total" title="Stretches or squeezes all frames so one loop lasts this long">Whole loop</label><input id="total" type="number" min="0.1" step="0.1" title="Stretches or squeezes all frames so one loop lasts this long"><span class="u">s</span>
     </span>
     <span id="tc"></span></div>
   <div id="overview" class="hidden" title="Click or drag to scrub"><canvas></canvas><div id="playhead"></div></div>
@@ -349,6 +355,7 @@
 
 <input id="file" type="file" multiple accept="image/*,video/*,.zip,application/zip" hidden>
 <input id="dir" type="file" webkitdirectory hidden>
+<input id="bgFile" type="file" accept="image/*" hidden>
 <input id="layoutFile" type="file" accept="image/png,image/webp,image/*,application/pdf,.pdf" hidden>
 
 <script id="encoderSrc" type="javascript/worker">
@@ -565,7 +572,7 @@ const S = {
   fr: { x: 0, y: 0, w: 1, h: 1 },  // GIF frame inside the layout, layout px; the GIF is clipped to it
   ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
   crop: false,                     // crop mode: gestures move the picture, not the frame
-  bg: '#ffffff', clear: true, delay: DEFAULT_DELAY,  // clear: transparent background
+  bg: '#ffffff', clear: true, bgImg: null, alpha: 1,  // bgImg: { bmp, name, url }; alpha: opacity of the frames delay: DEFAULT_DELAY,  // clear: transparent background
 };
 let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
 
@@ -622,9 +629,9 @@ async function decodeImage(file) {
   }
 }
 // scale a drawable down to SOURCE_MAX_WIDTH and return an ImageBitmap
-async function shrink(src, w, h) {
-  if (w <= SOURCE_MAX_WIDTH && src instanceof ImageBitmap) return src;
-  const k = Math.min(1, SOURCE_MAX_WIDTH / w);
+async function shrink(src, w, h, max = SOURCE_MAX_WIDTH) {
+  if (w <= max && src instanceof ImageBitmap) return src;
+  const k = Math.min(1, max / w);
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
   const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
@@ -926,6 +933,8 @@ function syncScale() {
 }
 
 // ---- drawing (shared by preview and export) ----
+// GIF pixels are either solid or see-through, so opacity needs a color or image behind the frames
+const alphaNow = () => S.clear ? 1 : S.alpha;
 function drawScene(g, W, H, f, preview, opts = {}) {
   const sc = scene(), k = W / sc.w;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -933,11 +942,15 @@ function drawScene(g, W, H, f, preview, opts = {}) {
   else { g.fillStyle = S.bg; g.fillRect(0, 0, W, H); }
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.setTransform(k, 0, 0, k, 0, 0);
+  if (S.bgImg) {  // background image covers the whole GIF
+    const b = S.bgImg.bmp, s = Math.max(sc.w / b.width, sc.h / b.height);
+    g.drawImage(b, (sc.w - b.width * s) / 2, (sc.h - b.height * s) / 2, b.width * s, b.height * s);
+  }
   const F = frameRect(), C = contentRect(F);
   if (f && F) {
     const fit = () => { const s = Math.min(C.w / f.w, C.h / f.h); g.drawImage(f.bmp, C.x + (C.w - f.w * s) / 2, C.y + (C.h - f.h * s) / 2, f.w * s, f.h * s); };
-    if (preview && S.crop) { g.globalAlpha = 0.3; fit(); g.globalAlpha = 1; }  // the cropped-away parts, faint
-    g.save(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip(); fit(); g.restore();
+    if (preview && S.crop) { g.globalAlpha = 0.3 * alphaNow(); fit(); g.globalAlpha = 1; }  // the cropped-away parts, faint
+    g.save(); g.globalAlpha = alphaNow(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip(); fit(); g.restore();
   }
   if (layoutOn() && opts.layout !== false) {
     g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
@@ -1009,10 +1022,11 @@ function drawOverview() {
   const g = ov.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   g.imageSmoothingQuality = 'high';
   g.fillStyle = S.clear ? checker(g) : S.bg; g.fillRect(0, 0, W, H);  // transparent frames show the background, as in the GIF
+  if (S.bgImg) { const b = S.bgImg.bmp, k = Math.max(W / b.width, H / b.height); g.drawImage(b, (W - b.width * k) / 2, (H - b.height * k) / 2, b.width * k, b.height * k); }
   seq.forEach((f, i) => {
     const x0 = ovStart[i] / ovTotal * W, x1 = (ovStart[i] + f.delay) / ovTotal * W, w = x1 - x0;
     const t = f.thumb, k = Math.max(w / t.width, H / t.height), sw = w / k, sh = H / k;  // cover the slot
-    g.drawImage(t, (t.width - sw) / 2, (t.height - sh) / 2, sw, sh, x0, 0, w, H);
+    g.globalAlpha = alphaNow(); g.drawImage(t, (t.width - sw) / 2, (t.height - sh) / 2, sw, sh, x0, 0, w, H); g.globalAlpha = 1;
     if (i >= S.frames.length) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x0, 0, w, H); }  // boomerang return
     if (w > 4 && i) { g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x0, 0, 1, H); }
   });
@@ -1206,6 +1220,9 @@ function updateInfo() {
   const ms = seq.reduce((a, f) => a + Math.round(f.delay / 10) * 10, 0);
   $('#info').textContent = `${n} frame${n > 1 ? 's' : ''}` + (seq.length !== n ? ` · ${seq.length} in loop` : '') + ` · ${(ms / 1000).toFixed(2)} s`;
   if (document.activeElement !== $('#total')) $('#total').value = (ms / 1000).toFixed(2);
+  const same = S.frames.every(f => f.delay === S.frames[0].delay) ? S.frames[0].delay : '';  // empty shows "mixed"
+  if (document.activeElement !== $('#defDelay')) $('#defDelay').value = same;
+  if (document.activeElement !== $('#fps')) $('#fps').value = same && +(1000 / same).toFixed(1);
   drawOverview();
   $('#exportInfo').textContent = exportText();
 }
@@ -1220,9 +1237,15 @@ function say(msg, isErr) {
 }
 
 // ---- controls ----
+// both timing fields apply right away (Enter, leaving the field, or the arrows)
 $('#defDelay').value = S.delay;
-$('#defDelay').onchange = () => { S.delay = clampDelay($('#defDelay').value); $('#defDelay').value = S.delay; };
-$('#bApply').onclick = () => { S.delay = clampDelay($('#defDelay').value); for (const f of S.frames) f.delay = S.delay; changed(); };
+function setAllDelays(ms) {
+  S.delay = clampDelay(ms);  // also the duration of images added later
+  for (const f of S.frames) f.delay = S.delay;
+  changed();
+}
+$('#defDelay').onchange = () => { if ($('#defDelay').value === '') updateInfo(); else setAllDelays(+$('#defDelay').value); };
+$('#fps').onchange = () => { const v = +$('#fps').value; if (v > 0) setAllDelays(1000 / v); else updateInfo(); };
 // scale every frame so one loop lasts `sec`; rounding to 10 ms steps is evened out afterwards
 function setLength(sec) {
   if (!seq.length || !(sec > 0)) return;
@@ -1244,7 +1267,6 @@ function setLength(sec) {
   changed();
 }
 $('#total').onchange = () => setLength(+$('#total').value);
-$('#bLen').onclick = () => setLength(+$('#total').value);
 $('#bReverse').onclick = () => { S.frames.reverse(); changed(); };
 $('#bClear').onclick = () => { if (S.frames.length && confirm(`Remove all ${S.frames.length} frames?`)) { for (const f of S.frames) f.bmp.close?.(); S.frames = []; changed(); } };
 $('#bPlay').onclick = () => setPlaying(!S.playing);
@@ -1272,15 +1294,30 @@ $('#scale').oninput = () => {
   const now = cropping() ? S.ct.s : r.w / S.box.w;
   scaleAround(cropping() ? (F => ({ x: F.x + F.w / 2, y: F.y + F.h / 2 }))(frameRect()) : { x: r.x + r.w / 2, y: r.y + r.h / 2 }, 2 ** +$('#scale').value / now);
 };
-function setBg(clear, color = S.bg) {
-  S.clear = clear; S.bg = color;
-  $('#bgClear').checked = clear;
-  document.documentElement.classList.toggle('clearbg', clear);
-  document.documentElement.style.setProperty('--framebg', color);
+// background: transparent, a color, or an image (an image replaces the other two; choosing one of them drops it)
+function setBg(clear, color = S.bg, img = null) {
+  if (S.bgImg && S.bgImg !== img) { S.bgImg.bmp.close?.(); URL.revokeObjectURL(S.bgImg.url); }
+  S.clear = clear && !img; S.bg = color; S.bgImg = img;
+  $('#bgClear').checked = S.clear;
+  $('#bBgImg').classList.toggle('on', !!img);
+  $('#bgImgRow').classList.toggle('hidden', !img); $('#bgImgName').textContent = img ? img.name : '';
+  const root = document.documentElement;
+  root.classList.toggle('clearbg', S.clear); root.classList.toggle('imgbg', !!img);
+  root.style.setProperty('--framebg', color);
+  root.style.setProperty('--framebgimg', img ? `url("${img.url}")` : 'none');
   palettes.clear(); sampleCache = null; drawOverview(); dirty = true;
 }
 $('#bg').oninput = e => setBg(false, e.target.value);
 $('#bgClear').onchange = e => setBg(e.target.checked);
+$('#bBgImg').onclick = () => $('#bgFile').click();
+$('#bBgImgDel').onclick = () => setBg(false);
+$('#bgFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { const b = await decodeImage(f); setBg(false, S.bg, { bmp: await shrink(b, b.width, b.height, MAX_WIDTH), name: f.name, url: URL.createObjectURL(f) }); }
+  catch (err) { console.warn(err); say(`${f.name}: not an image this browser can read`, true); }
+};
+$('#opacity').oninput = () => { S.alpha = +$('#opacity').value / 100; $('#opacityOut').textContent = $('#opacity').value + '%';
+  document.documentElement.style.setProperty('--framealpha', S.alpha); drawOverview(); dirty = true; };
 
 addEventListener('keydown', e => {
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) || !$('#dialog').classList.contains('hidden')) return;
@@ -1458,7 +1495,7 @@ async function encodeAll(enc, s, onProgress) {
 // ---- size estimate on the export button: runs in the background once nothing has changed for a moment ----
 let estKey = '', estAt = 0, estRun = 0, estDone = '', estPromise = null, exporting = false;
 const sceneKey = () => [S.frames.map(f => f.id).join(','), seq.length, S.useLayout, S.layout?.name, S.layout?.w,
-  JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg].join('|');
+  JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg, S.bgImg?.url, S.alpha].join('|');
 async function runEstimate(key) {
   const id = ++estRun, enc = startEncoder();
   palettes.clear(); sampleCache = null;
