@@ -9,29 +9,25 @@
 <title>GIF Generator</title>
 <style>
   :root {
-    --bg: #0e0f13; --fg: #f5f5f7; --muted: rgba(235,235,245,.6); --line: rgba(255,255,255,.1);
+    --bg: #151517; --fg: #f5f5f7; --muted: rgba(235,235,245,.6); --line: rgba(255,255,255,.1);
     --tint: rgba(38,38,44,.42); --fill: rgba(255,255,255,.08); --fill-hi: rgba(255,255,255,.16);
     --rim: rgba(255,255,255,.55); --rim-lo: rgba(255,255,255,.12);
     --accent: #ff6a3d; --accent-soft: rgba(255,106,61,.2);
     --shadow: 0 10px 40px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25);
-    --blob1: rgba(255,106,61,.28); --blob2: rgba(80,120,255,.24); --blob3: rgba(180,90,255,.18);
+    --dot: rgba(255,255,255,.16);
   }
   :root[data-theme="light"] {
-    --bg: #eef0f4; --fg: #1d1d1f; --muted: rgba(60,60,67,.62); --line: rgba(0,0,0,.08);
+    --bg: #f4f0e8; --fg: #1d1d1f; --muted: rgba(60,60,67,.62); --line: rgba(0,0,0,.08);
     --tint: rgba(255,255,255,.42); --fill: rgba(0,0,0,.05); --fill-hi: rgba(0,0,0,.09);
     --rim: rgba(255,255,255,.95); --rim-lo: rgba(255,255,255,.4);
     --accent: #f05a2e; --accent-soft: rgba(240,90,46,.14);
     --shadow: 0 10px 36px rgba(30,40,80,.14), 0 2px 6px rgba(30,40,80,.08);
-    --blob1: rgba(255,140,90,.35); --blob2: rgba(100,150,255,.32); --blob3: rgba(200,130,255,.25);
+    --dot: rgba(60,50,40,.2);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; color: var(--fg);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-  body { background:
-      radial-gradient(60vmax 50vmax at 8% 0%, var(--blob1), transparent 60%),
-      radial-gradient(55vmax 55vmax at 100% 100%, var(--blob2), transparent 60%),
-      radial-gradient(40vmax 40vmax at 90% 10%, var(--blob3), transparent 60%),
-      var(--bg); }
+  body { background: radial-gradient(circle, var(--dot) 1.1px, transparent 1.6px) 0 0 / 22px 22px, var(--bg); }  /* dotted canvas */
   .hidden { display: none !important; }
   .muted, .note { color: var(--muted); }
   .note { font-size: 11px; line-height: 1.4; }
@@ -62,7 +58,7 @@
     background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 60%), var(--fill-hi);
     box-shadow: 0 2px 10px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px var(--line); }
   button.primary:hover { background: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.04) 60%), var(--fill-hi); }
-  #estSize { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #estSize { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; display: inline-block; min-width: 11.5ch; text-align: left; white-space: nowrap; }  /* fixed width: the toolbar doesn't jump while estimating */
   #estSize:not(:empty)::before { content: '· '; }
   button.primary:disabled { background: var(--fill); color: var(--muted); box-shadow: none; filter: none; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -171,13 +167,23 @@
   #empty.demo { position: absolute !important; bottom: 0; left: 50%; transform: translateX(-50%); padding: 6px 6px 6px 18px; max-width: calc(100% - 8px);
     border-radius: 999px; display: flex; align-items: center; gap: 12px; white-space: nowrap; z-index: 1; }
   #empty.demo > :not(.row):not(.demo-only) { display: none; }
-  #empty.demo .demo-only { display: inline; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #empty:not(.demo) .row { display: none; }  /* the button only on the example: otherwise + Add or drop */
+  #empty.demo { background: var(--accent); color: #fff; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  #empty.demo::before { display: none; }
+  #empty.demo #pick { background: rgba(0,0,0,.16); color: #fff; box-shadow: none; }
+  #empty.demo #pick:hover { background: rgba(0,0,0,.26); }
+  #empty.demo .demo-only { display: inline; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   #empty.demo .row { margin: 0; flex-wrap: nowrap; }
   #empty.demo button { padding: 6px 12px; }
   @media (max-width: 640px) { #empty.demo .demo-only { display: none; } #empty.demo { padding-left: 6px; } }
-  #drop { position: fixed; inset: 10px; border-radius: 28px; display: none; place-items: center; pointer-events: none; z-index: 5;
-    background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  #drop span { font-size: 18px; font-weight: 600; color: var(--accent); }
+  #drop { position: fixed; inset: 10px; display: none; gap: 10px; pointer-events: none; z-index: 5; grid-template-columns: 1fr; }
+  #drop.split { grid-template-columns: 1fr 1fr; }
+  #drop .zone { border-radius: 28px; display: grid; place-content: center; text-align: center; gap: 4px; background: rgba(0,0,0,.08);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background .15s, box-shadow .15s; }
+  #drop .zone.hot { background: var(--accent-soft); box-shadow: inset 0 0 0 3px var(--accent); }
+  #drop:not(.split) .zone[data-z="layer"] { display: none; }
+  #drop span { font-size: 20px; font-weight: 600; color: var(--accent); }
+  #drop small { color: var(--fg); opacity: .7; }
   body.dragging #drop { display: grid; }
 
   /* filmstrip */
@@ -190,7 +196,7 @@
   .timing { display: flex; align-items: center; gap: 6px; cursor: default; font-size: 12px; }
   .timing label, .timing .u { color: var(--muted); }
   .timing input[type=number] { width: 4.6em; padding: 3px 7px; }
-  .timing #fps { width: 4em; }
+  .timing #fps { width: 5.2em; }
   .timing .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
   .phead .count { color: var(--muted); font-size: 12px; flex: 1; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .chev { color: var(--muted); transition: transform .25s; width: 14px; height: 14px; }
@@ -202,19 +208,47 @@
   #overview canvas { display: block; width: 100%; height: 100%; }
   #playhead { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #fff; border-radius: 2px; pointer-events: none;
     box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 8px rgba(0,0,0,.5); }
-  #curve { position: relative; height: 34px; margin: -4px 0 8px; cursor: crosshair; touch-action: none; user-select: none; }
+  #curve { position: relative; height: 44px; margin: -4px 0 8px; cursor: crosshair; touch-action: none; user-select: none; }
   #curve canvas { display: block; width: 100%; height: 100%; }
-  #bCurveReset { position: absolute; top: 0; right: 0; width: 22px; height: 22px; padding: 0; font-size: 13px; color: var(--muted);
+  #bCurveMenu { position: absolute; top: 0; right: 0; width: 24px; height: 20px; padding: 0; font-size: 13px; color: var(--muted);
     background: var(--fill); opacity: 0; transition: opacity .2s; }
-  #curve:hover #bCurveReset, #bCurveReset:focus-visible { opacity: 1; }
-  #curve.even #bCurveReset { display: none; }
-  @media (pointer: coarse) { #bCurveReset { opacity: 1; } }
+  #curve:hover #bCurveMenu, #bCurveMenu:focus-visible { opacity: 1; }
+  @media (pointer: coarse) { #bCurveMenu { opacity: 1; } }
+  #curveMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 200px; animation: pop .15s ease-out; transform-origin: bottom left; }
+  #curveMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; }
+  #curveMenu .sub { font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 12px 4px; }
   #menu input[type=text] { font: inherit; color: var(--fg); background: var(--fill); border: 1px solid transparent; border-radius: 9px; padding: 6px 10px; }
   #menu input[type=text]:focus { outline: none; border-color: var(--accent); }
   #menu select { font: inherit; color: var(--fg); background: var(--fill); border: 1px solid transparent; border-radius: 9px; padding: 5px 8px; min-width: 0; flex: 1; }
   #menu select:focus { outline: none; border-color: var(--accent); }
   #menu select option { color: #000; }
   #txtX, #txtY { width: 4.6em; }
+  #ctxMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 140px; animation: pop .15s ease-out; transform-origin: top left; }
+  #ctxMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; }
+  #ctxMenu #ctxDel { color: var(--accent); }
+  #addMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 170px; animation: pop .15s ease-out; transform-origin: top left; }
+  #addMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; gap: 10px; }
+  #addMenu b { width: 18px; text-align: center; font-family: Georgia, serif; font-size: 16px; }
+  #expMenu { z-index: 30; padding: 12px; border-radius: 18px; width: 290px; display: grid; gap: 10px; animation: pop .15s ease-out; transform-origin: top right; }
+  #expMenu .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  #expMenu .erow { display: flex; align-items: center; gap: 10px; }
+  #expMenu .seg { flex: 1; }
+  #expMenu .seg button { padding: 4px 6px; }
+  .msep { height: 1px; background: var(--line); margin: 4px 6px; }
+  #menu .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+  #ovBox.img .tonly, #ovBox.none .tonly:not(#txt) { display: none; }
+  #layers { display: flex; flex-direction: column; gap: 2px; }
+  .layer { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 4px; border-radius: 10px; cursor: pointer; user-select: none; min-height: 34px; }
+  .layer:hover { background: var(--fill); }
+  .layer.sel { background: var(--accent-soft); }
+  .layer.off .lname, .layer.off .lic { opacity: .4; }
+  .layer.dragover-top { box-shadow: 0 -2px 0 var(--accent); } .layer.dragover-bottom { box-shadow: 0 2px 0 var(--accent); }
+  .layer .eye { width: 26px; height: 26px; padding: 0; font-size: 13px; flex: none; }
+  .layer .lic { width: 18px; text-align: center; color: var(--muted); flex: none; font-size: 12px; }
+  .layer .lname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .layer .lsub { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .layer.fixed { cursor: default; }
+  #ovNone { display: none; } #ovBox.none #ovNone { display: block; }
   #tiles { display: flex; gap: 6px; overflow-x: auto; padding: 2px 6px 4px; min-height: 104px; scrollbar-width: thin; }
   #tiles:empty::before { content: 'Your frames will appear here'; color: var(--muted); align-self: center; margin: 0 auto; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 5px; align-items: center; padding: 5px; border-radius: 14px; position: relative; transition: background .2s; }
@@ -281,7 +315,25 @@
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 </svg>
 
-<div id="drop"><span>Drop to add</span></div>
+<div id="drop"><div class="zone" data-z="frames"><span>As frames</span><small>each image becomes a frame</small></div><div class="zone" data-z="layer"><span>As layer</span><small>on top, on every frame</small></div></div>
+<div id="ctxMenu" class="ui hidden"><button id="ctxAll">✓ Every frame</button><button id="ctxOne">Only this frame</button><span class="msep"></span><button id="ctxDup">Duplicate</button><button id="ctxDel">Delete</button></div>
+<div id="expMenu" class="ui hidden">
+  <div class="sub">Export</div>
+  <div class="erow"><span class="muted">Width</span><div class="seg" id="outSeg"><button data-w="0" title="As large as fits the size budget">Auto</button><button data-w="1200">1200</button><button data-w="800">800</button><button data-w="480">480</button></div></div>
+  <div class="note" id="exportInfo"></div>
+  <button id="expGo" class="primary"><svg class="i"><use href="#i-export"/></svg>Export GIF</button>
+</div>
+<div id="curveMenu" class="ui hidden pop">
+  <div class="sub" id="cmHead">Timing</div>
+  <button data-ease="in" title="Starts slow: early frames last longer">Ease in</button>
+  <button data-ease="out" title="Ends slow: late frames last longer">Ease out</button>
+  <button data-ease="both" title="Slow at start and end">Ease in &amp; out</button>
+  <button data-ease="even" title="Every frame the same duration, same loop length">Even</button>
+  <span class="msep"></span>
+  <button id="cmAll">Select all frames</button>
+  <button id="cmClear">Clear selection</button>
+</div>
+<div id="addMenu" class="ui hidden"><button id="addText"><b>T</b>Text</button><button id="addImg"><svg class="i"><use href="#i-images"/></svg>Image</button><span class="msep"></span><button id="addFiles"><svg class="i"><use href="#i-plus"/></svg>Choose files…</button></div>
 
 <main id="stage">
   <canvas id="preview" class="hidden"></canvas>
@@ -292,19 +344,19 @@
     <div class="row">
       <button id="pick" class="primary"><svg class="i"><use href="#i-plus"/></svg>Choose files</button>
     </div>
-    <span class="note desk-only">or paste with ⌘V</span>
-    <span class="demo-only">Example · add your frames to replace it</span>
+    <span class="note"><span class="desk-only">or use <b>+ Add</b> · paste with ⌘V</span></span>
+    <span class="demo-only">Example · drop your images or choose them to replace it</span>
   </div>
 </main>
 
 <div id="bar" class="ui">
-  <button id="bAdd" data-tip="Add images, a .zip or a video" aria-label="Add"><svg class="i"><use href="#i-plus"/></svg><span class="lbl-opt">Add</span></button>
+  <button id="bAdd" data-tip="Add frames, text or an image" aria-label="Add"><svg class="i"><use href="#i-plus"/></svg><span class="lbl-opt">Add</span></button>
   <span class="sep"></span>
   <button id="bPlay" class="icon" data-tip="Play / pause · Space" aria-label="Play or pause"></button>
   <button id="bBoom" class="icon" data-tip="Boomerang: forward, then backward" aria-label="Boomerang"><svg class="i"><use href="#i-boom"/></svg></button>
   <label id="floatSwitch" class="switch" data-tip="Place the GIF into a PNG / PDF layout"><input type="checkbox" id="useLayout"><span class="track"></span><span class="lbl lbl-opt">Layout</span></label>
   <span class="sep"></span>
-  <button id="bExport" class="primary" disabled data-tip="Save as GIF · estimated file size"><svg class="i"><use href="#i-export"/></svg>Export<span id="estSize"></span></button>
+  <button id="bExport" class="primary" disabled data-tip="Save as GIF · right-click for settings"><svg class="i"><use href="#i-export"/></svg>Export<span id="estSize"></span></button>
   <button id="bMenu" class="icon" aria-label="Settings" data-tip="Settings"><svg class="i"><use href="#i-more"/></svg></button>
 </div>
 
@@ -319,8 +371,6 @@
     <span class="row span"><button id="bReverse" class="soft">Reverse</button><button id="bClear" class="soft">Remove all</button></span>
     <span class="lbl">Count</span>
     <span class="row span"><button id="bHalve" class="soft" title="Remove frames 2, 4, 6 …: half the frames, the motion runs twice as fast">Remove every 2nd</button><button id="bDouble" class="soft" title="Show every frame twice in a row: double the frames, the motion runs half as fast">Double each</button></span>
-    <span class="lbl" title="Spreads the same loop length differently over the frames">Ease</span>
-    <div class="seg" id="easeSeg"><button data-ease="even" title="Same duration for every frame, same loop length">Even</button><button data-ease="in" title="Starts slow: early frames last longer">In</button><button data-ease="out" title="Ends slow: late frames last longer">Out</button><button data-ease="both" title="Slow at start and end">Both</button></div>
     <label for="fade" title="The first and last frames fade from and to the background">Fade</label><input id="fade" type="range" min="0" max="6" step="1" value="0"><output id="fadeOut">off</output>
     <label class="switch wide" title="Preview only: the previous and next frame show faintly, to check the spacing"><input type="checkbox" id="onion"><span class="track"></span>Onion skin</label>
     <div class="wide note">Shift-click frames to use these on a range only.</div>
@@ -347,31 +397,39 @@
     <span class="row span" style="gap:10px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"><button id="bBgImg" class="soft" title="An image behind the frames, filling the whole GIF">Image…</button></span>
     <span id="bgImgRow" class="row wide hidden"><span class="lbl" style="width:66px"></span><span id="bgImgName" class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="bBgImgDel" class="soft" title="Remove the background image">Remove</button></span>
     <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
-    <span class="lbl">Key color</span>
-    <span class="row span" style="gap:10px"><label class="switch" title="Makes this color see-through in every frame, e.g. a white background"><input type="checkbox" id="keyOn"><span class="track"></span>See-through</label><input id="keyColor" type="color" value="#ffffff" title="The color to remove"></span>
-    <label for="keyTol">Tolerance</label><input id="keyTol" type="range" min="0" max="100" step="1" value="20"><output id="keyTolOut">20</output>
-    <span class="lbl">Filter</span>
-    <label class="switch span"><input type="checkbox" id="bw"><span class="track"></span>Black &amp; white</label>
+  </div></details>
+
+  <details><summary>Color</summary><div class="body">
+    <div class="wide sub">Remove a color</div>
+    <label class="switch wide" title="Every pixel of this color becomes see-through, in every frame"><input type="checkbox" id="keyOn"><span class="track"></span>Make <input id="keyColor" type="color" value="#ffffff" title="Pick the color to remove" style="margin:0 2px"> see-through</label>
+    <label for="keyTol" title="0: only exactly this color. Higher: similar shades go too">Similar</label><input id="keyTol" type="range" min="0" max="100" step="1" value="20"><output id="keyTolOut">20</output>
+    <div class="wide note">E.g. a white background behind a drawing. Raise <i>Similar</i> if a halo stays.</div>
+    <div class="wide sub">Filters</div>
+    <label class="switch wide"><input type="checkbox" id="bw"><span class="track"></span>Black &amp; white</label>
     <label for="contrast">Contrast</label><input id="contrast" type="range" min="-100" max="100" step="1" value="0"><output id="contrastOut">0</output>
     <label for="poster" title="Fewer tones per color: a graphic look and much smaller files">Posterize</label><input id="poster" type="range" min="1" max="8" step="1" value="1"><output id="posterOut">off</output>
   </div></details>
 
-  <details><summary>Text</summary><div class="body">
-    <input id="txt" class="wide" type="text" placeholder="Caption on the GIF" autocomplete="off">
-    <label for="txtFont">Font</label>
-    <span class="row span" style="gap:10px"><select id="txtFont"></select><label class="switch"><input type="checkbox" id="txtBold" checked><span class="track"></span>Bold</label></span>
-    <span class="lbl"></span><span class="span"><button id="bFont" class="soft" title="Load a font file (.otf .ttf .woff .woff2) from your computer. Stays in this browser tab, nothing is uploaded">Own font…</button></span>
-    <span class="lbl" title="In pixels of the exported GIF, from its top left corner. Or drag the text in the preview">Position</span>
-    <span class="row span"><span class="muted">X</span><input id="txtX" type="number" step="1"><span class="muted">Y</span><input id="txtY" type="number" step="1"><span class="muted">px</span></span>
-    <label for="txtSize">Size</label>
-    <span class="row span"><input id="txtSize" type="number" min="4" step="1"><span class="muted">px</span><input id="txtColor" type="color" value="#000000" title="Text color" style="margin-left:auto"></span>
-    <div class="wide note">Drag the text in the preview to move it.</div>
+  <details id="layersBox"><summary>Layers</summary><div class="body">
+    <div class="wide" id="layers"></div>
+    <div class="wide note">Top to bottom. Drag a row to reorder, 👁 to hide, right-click a text or image for more.</div>
   </div></details>
 
-  <details><summary>Export</summary><div class="body">
-    <span class="lbl">Width</span>
-    <div class="seg" id="outSeg"><button data-w="0" title="As large as fits the size budget">Auto</button><button data-w="1200">1200</button><button data-w="800">800</button><button data-w="480">480</button></div>
+  <details id="ovBox"><summary>Text &amp; images</summary><div class="body">
+    <div class="wide note" id="ovNone">Add text or an image with <b>+ Add</b> in the toolbar.</div>
+    <input id="txt" class="wide tonly" type="text" placeholder="Text" autocomplete="off">
+    <label for="txtFont" class="tonly">Font</label>
+    <span class="row span tonly" style="gap:10px"><select id="txtFont"></select><label class="switch"><input type="checkbox" id="txtBold" checked><span class="track"></span>Bold</label></span>
+    <span class="lbl tonly"></span><span class="span tonly"><button id="bFont" class="soft" title="Load a font file (.otf .ttf .woff .woff2) from your computer. Stays in this browser tab, nothing is uploaded">Own font…</button></span>
+    <span class="lbl" title="In pixels of the exported GIF, from its top left corner. Or drag it in the preview">Position</span>
+    <span class="row span"><span class="muted">X</span><input id="txtX" type="number" step="1"><span class="muted">Y</span><input id="txtY" type="number" step="1"><span class="muted">px</span></span>
+    <label for="txtSize" id="txtSizeLbl" title="Text: font size. Image: width. Or scroll over it in the preview">Size</label>
+    <span class="row span"><input id="txtSize" type="number" min="4" step="1"><span class="muted">px</span><input id="txtColor" class="tonly" type="color" value="#000000" title="Text color" style="margin-left:auto"></span>
+    <span class="lbl">Shows on</span>
+    <div class="seg" id="ovWhere"><button data-where="all">Every frame</button><button data-where="one" title="Only on the frame shown now">This frame</button></div>
+    <div class="wide note">In the preview: drag to move, scroll to resize, right-click for more.</div>
   </div></details>
+
 
   <details><summary>Appearance</summary><div class="body">
     <span class="lbl">Theme</span>
@@ -381,7 +439,6 @@
   </div></details>
 
   <div id="foot">
-    <span id="exportInfo"></span>
     <span>GIF Generator <span id="versionText">v0.9</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></span>
   </div>
 </div></div>
@@ -395,7 +452,7 @@
     </span>
     <span id="tc"></span></div>
   <div id="overview" class="hidden" title="Click or drag to scrub"><canvas></canvas><div id="playhead"></div></div>
-  <div id="curve" class="hidden" title="Duration of each frame: drag to draw it, higher = longer"><canvas></canvas><button id="bCurveReset" title="Reset: every frame the same duration, same loop length">↺</button></div>
+  <div id="curve" class="hidden" title="Duration of each frame, under its place in the overview. Drag up/down to draw · click a dot to select, shift-click for a range · right-click for presets"><canvas></canvas><button id="bCurveMenu" title="Timing presets">⋯</button></div>
   <div id="tiles" title="Drag to reorder · click to show · shift-click: range · Del removes"></div>
 </section>
 
@@ -413,6 +470,7 @@
 
 <input id="file" type="file" multiple accept="image/*,video/*,.zip,application/zip" hidden>
 <input id="bgFile" type="file" accept="image/*" hidden>
+<input id="ovFile" type="file" accept="image/*" hidden>
 <input id="fontFile" type="file" accept=".otf,.ttf,.woff,.woff2,font/*" multiple hidden>
 <input id="layoutFile" type="file" accept="image/png,image/webp,image/*,application/pdf,.pdf" hidden>
 
@@ -633,9 +691,13 @@ const S = {
   picked: new Set(), anchor: null,  // shift-click range in the filmstrip
   onion: false, fade: 0, outW: 0,  // outW: export width, 0 = auto
   fx: { key: false, keyColor: '#ffffff', keyTol: 20, bw: false, contrast: 0, poster: 1 },
-  text: { str: '', x: 0.05, y: 0.84, size: 0.06, font: 'System', bold: true, color: '#000000' },  // x, y (top left) and size as fractions of the GIF
+  items: [{ type: 'frames' }, { type: 'layout' }], ti: -1,  // layers, bottom to top: frames, layout, text and image overlays; ti: the selected one
+  tdef: { str: '', x: 0.05, y: 0.84, size: 0.06, font: 'System', bold: true, color: '#000000' },  // x, y (top left) and size as fractions of the GIF
   bg: '#ffffff', clear: true, bgImg: null, alpha: 1,  // bgImg: { bmp, name, url }; alpha: opacity of the frames delay: DEFAULT_DELAY,  // clear: transparent background
 };
+const isOverlay = t => t?.type === 'text' || t?.type === 'image';
+const curItem = () => isOverlay(S.items[S.ti]) ? S.items[S.ti] : null;
+Object.defineProperty(S, 'text', { get: () => curItem() || S.tdef });  // the overlay being edited, or the settings for a new text
 let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
 
 // ---- version, theme ----
@@ -1070,32 +1132,38 @@ const FONTS = {
   'ES Klarheit': '"ES Klarheit Grotesk", "ESKlarheitGrotesk", "ES Klarheit", "Helvetica Neue", Arial, sans-serif',  // if installed
 };
 // text: drawn in scene units, position and size stored as fractions of the GIF so a layout switch keeps it in place
-function textFont(sc = scene()) { const t = S.text; return `${t.bold ? 700 : 400} ${t.size * sc.w}px ${FONTS[t.font] || FONTS.System}`; }
+function textFont(t = S.text, sc = scene()) { return `${t.bold ? 700 : 400} ${t.size * sc.w}px ${FONTS[t.font] || FONTS.System}`; }
 const measureCtx = document.createElement('canvas').getContext('2d');
-function textBox() {  // scene units
-  const t = S.text; if (!t.str.trim() || !S.box) return null;
-  const sc = scene(); measureCtx.font = textFont(sc);
+function textBox(t = S.text) {  // scene units; for an image, size is its width
+  if (!S.box) return null;
+  const sc = scene();
+  if (!isOverlay(t)) return null;
+  if (t.type === 'image') return { x: t.x * sc.w, y: t.y * sc.h, w: t.size * sc.w, h: t.size * sc.w * t.ar };
+  if (!t.str?.trim()) return null;
+  measureCtx.font = textFont(t, sc);
   return { x: t.x * sc.w, y: t.y * sc.h, w: measureCtx.measureText(t.str).width, h: t.size * sc.w * 1.2 };
 }
-function drawText(g) {
-  const b = textBox(); if (!b) return;
-  g.save(); g.globalAlpha = 1; g.font = textFont(); g.fillStyle = S.text.color;
-  g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(S.text.str, b.x, b.y);
+const onFrame = (t, f) => !t.frame || (f && t.frame === f.id);  // overlays on every frame or on one
+function drawItem(g, t, f) {
+  const b = isOverlay(t) && onFrame(t, f) && textBox(t); if (!b) return;
+  g.save(); g.globalAlpha = 1;
+  if (t.type === 'image') { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(t.bmp, b.x, b.y, b.w, b.h); }
+  else { g.font = textFont(t); g.fillStyle = t.color; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(t.str, b.x, b.y); }
   g.restore();
 }
 function drawScene(g, W, H, f, preview, opts = {}) {
   const sc = scene(), k = W / sc.w;
   g.setTransform(1, 0, 0, 1, 0, 0);
-  if (S.clear) g.clearRect(0, 0, W, H);  // the preview shows a checkerboard behind (CSS)
+  if (S.clear || opts.framesOnly) g.clearRect(0, 0, W, H);  // the preview shows a checkerboard behind (CSS)
   else { g.fillStyle = S.bg; g.fillRect(0, 0, W, H); }
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.setTransform(k, 0, 0, k, 0, 0);
-  if (S.bgImg) {  // background image covers the whole GIF
+  if (S.bgImg && !opts.framesOnly) {  // background image covers the whole GIF
     const b = S.bgImg.bmp, s = Math.max(sc.w / b.width, sc.h / b.height);
     g.drawImage(b, (sc.w - b.width * s) / 2, (sc.h - b.height * s) / 2, b.width * s, b.height * s);
   }
   const F = frameRect(), C = contentRect(F);
-  if (f && F) {
+  const drawFrames = () => { if (f && F) {
     const fit = fr => { const s = Math.min(C.w / fr.w, C.h / fr.h); g.drawImage(frameSrc(fr), C.x + (C.w - fr.w * s) / 2, C.y + (C.h - fr.h * s) / 2, fr.w * s, fr.h * s); };
     const a = alphaNow() * fadeAt(opts.i, opts.n);
     if (preview && S.crop) { g.globalAlpha = 0.3 * a; fit(f); g.globalAlpha = 1; }  // the cropped-away parts, faint
@@ -1105,14 +1173,21 @@ function drawScene(g, W, H, f, preview, opts = {}) {
       for (const o of [seq[(pos - 1 + seq.length) % seq.length], seq[(pos + 1) % seq.length]]) if (o !== f) fit(o);
     }
     g.globalAlpha = a; fit(f); g.restore();
+  } };
+  for (const L of S.items) {  // layers, bottom to top
+    if (L.hidden) continue;
+    if (L.type === 'frames') {
+      if (opts.framesFrom) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(opts.framesFrom, 0, 0, W, H); g.restore(); }
+      else drawFrames();
+    } else if (opts.framesOnly) continue;
+    else if (L.type === 'layout') {
+      if (!layoutOn()) continue;
+      g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
+      g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
+      g.globalAlpha = 1;
+    } else drawItem(g, L, f);
   }
-  if (layoutOn() && opts.layout !== false) {
-    g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
-    g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
-    g.globalAlpha = 1;
-  }
-  if (opts.text !== false) drawText(g);
-  if (preview && textDrag) { const b = textBox(); if (b) { const px = devicePixelRatio / k; g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent'); g.lineWidth = 1.5 * px; g.setLineDash([4 * px, 3 * px]); g.strokeRect(b.x - 4 * px, b.y - 4 * px, b.w + 8 * px, b.h + 8 * px); g.setLineDash([]); } }
+  if (preview && (textDrag || ctxMenuOpen() || layerSel)) { const b = curItem() && onFrame(curItem(), f) && textBox(); if (b) { const px = devicePixelRatio / k; g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent'); g.lineWidth = 1.5 * px; g.setLineDash([4 * px, 3 * px]); g.strokeRect(b.x - 4 * px, b.y - 4 * px, b.w + 8 * px, b.h + 8 * px); g.setLineDash([]); } }
   if (preview && F && (layoutOn() || S.crop)) {  // frame, picture and handles, preview only
     const px = devicePixelRatio / k;  // one css px in scene units
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent');
@@ -1189,57 +1264,102 @@ function drawOverview() {
 }
 new ResizeObserver(drawOverview).observe($('#overview'));
 const fmtT = ms => (ms / 1000).toFixed(2) + ' s';
-// ---- timing curve: one point per frame, height = duration; drag across it to draw the durations ----
+// ---- timing curve: one dot under each frame of the overview, height = duration ----
+// drag up/down to draw durations (only the selected frames, if several are selected); click a dot to select,
+// shift-click for a range, ⌘/ctrl-click to add one. Presets: the ⋯ button or right-click.
 const cv = $('#curve canvas');
 let curveMax = 200, curveDrag = null, curvePos = -1;
-const CPAD = 7;
+function curveSlots() {  // the overview's slots (frame widths by duration); frozen while drawing so nothing moves under the pointer
+  if (curveDrag?.slots) return curveDrag.slots;
+  const W = cv.clientWidth;
+  return seq.map((f, i) => ({ f, i, back: i >= S.frames.length, x0: ovStart[i] / ovTotal * W, x1: (ovStart[i] + f.delay) / ovTotal * W }));
+}
+const slotAt = (sl, x) => sl.find(q => x >= q.x0 && x < q.x1) || (x < 0 ? sl[0] : sl[sl.length - 1]);
 function drawCurve() {
-  const n = S.frames.length;
+  const n = seq.length;
   $('#curve').classList.toggle('hidden', n < 2);
-  const W = cv.clientWidth, H = cv.clientHeight; if (!W || n < 2) return;
+  const W = cv.clientWidth, H = cv.clientHeight; if (!W || n < 2 || !ovTotal) return;
   cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(H * devicePixelRatio);
   const g = cv.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  $('#curve').classList.toggle('even', S.frames.every(f => f.delay === S.frames[0].delay));
   if (!curveDrag) curveMax = Math.max(200, Math.ceil(Math.max(...S.frames.map(f => f.delay)) * 1.25 / 50) * 50);  // fixed while drawing
-  const X = i => CPAD + i / (n - 1) * (W - 2 * CPAD), Y = ms => H - 4 - ms / curveMax * (H - 10);
+  const Y = ms => H - 5 - ms / curveMax * (H - 12), sl = curveSlots(), cx = q => (q.x0 + q.x1) / 2;
   const css = getComputedStyle(document.documentElement), muted = css.getPropertyValue('--muted'), acc = css.getPropertyValue('--accent');
-  const P = S.frames.map((f, i) => S.picked.size > 1 && S.picked.has(f) ? i : -1).filter(i => i >= 0);
-  if (P.length) { g.fillStyle = css.getPropertyValue('--accent-soft'); const h = (W - 2 * CPAD) / (n - 1) / 2; g.fillRect(X(P[0]) - h, 0, X(P[P.length - 1]) - X(P[0]) + 2 * h, H); }
-  g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H - 3.5); g.lineTo(W, H - 3.5); g.stroke();
+  const many = S.picked.size > 1;
+  g.fillStyle = css.getPropertyValue('--accent-soft');
+  if (many) for (const q of sl) if (S.picked.has(q.f)) g.fillRect(q.x0, 0, q.x1 - q.x0, H);
+  g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H - 4.5); g.lineTo(W, H - 4.5); g.stroke();
   g.strokeStyle = muted; g.lineWidth = 1.5; g.lineJoin = 'round'; g.beginPath();
-  S.frames.forEach((f, i) => i ? g.lineTo(X(i), Y(f.delay)) : g.moveTo(X(i), Y(f.delay))); g.stroke();
-  const cur = S.frames.indexOf(seq[pos]); curvePos = cur;
-  g.fillStyle = muted;
-  if (n <= 80) S.frames.forEach((f, i) => { g.beginPath(); g.arc(X(i), Y(f.delay), 1.8, 0, 7); g.fill(); });
-  if (cur >= 0) { g.fillStyle = acc; g.beginPath(); g.arc(X(cur), Y(S.frames[cur].delay), 3.5, 0, 7); g.fill(); }
-  const show = curveDrag?.last;
-  if (show != null) {
-    const x = X(show), y = Y(S.frames[show].delay), label = S.frames[show].delay + ' ms';
-    g.font = '600 11px -apple-system, sans-serif'; g.textBaseline = 'middle';
-    g.textAlign = x > W - 60 ? 'right' : 'left'; g.fillStyle = css.getPropertyValue('--fg');
-    g.fillText(label, x + (x > W - 60 ? -8 : 8), Math.max(8, Math.min(H - 8, y)));
+  sl.forEach((q, k) => k ? g.lineTo(cx(q), Y(q.f.delay)) : g.moveTo(cx(q), Y(q.f.delay))); g.stroke();
+  for (const q of sl) {
+    if (q.x1 - q.x0 < 3 && sl.length > 120) continue;
+    const sel = many && S.picked.has(q.f);
+    g.beginPath(); g.arc(cx(q), Y(q.f.delay), sel ? 3 : 2.2, 0, 7);
+    if (q.back) { g.strokeStyle = sel ? acc : muted; g.lineWidth = 1.2; g.stroke(); }  // boomerang return: same frame, hollow
+    else { g.fillStyle = sel ? acc : muted; g.fill(); }
+  }
+  curvePos = pos;
+  const cur = sl[pos]; if (cur) { g.fillStyle = acc; g.beginPath(); g.arc(cx(cur), Y(cur.f.delay), 4, 0, 7); g.fill(); }
+  const show = curveDrag?.last != null && sl[curveDrag.last];
+  if (show) {
+    const x = cx(show), y = Y(show.f.delay), right = x > W - 70;
+    g.font = '600 11px -apple-system, sans-serif'; g.textBaseline = 'middle'; g.textAlign = right ? 'right' : 'left'; g.fillStyle = css.getPropertyValue('--fg');
+    g.fillText(show.f.delay + ' ms', x + (right ? -9 : 9), Math.max(8, Math.min(H - 8, y)));
   }
 }
 function paintCurve(e) {
-  const r = cv.getBoundingClientRect(), n = S.frames.length;
-  const i = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left - CPAD) / (r.width - 2 * CPAD))) * (n - 1));
-  const ms = Math.max(MIN_DELAY, curveMax * Math.max(0, Math.min(1, (r.height - 4 - (e.clientY - r.top)) / (r.height - 10))));
-  const from = curveDrag.last ?? i, m0 = curveDrag.lastMs ?? ms;
-  for (let k = Math.min(from, i); k <= Math.max(from, i); k++) {  // fill frames a fast move skipped
-    const t = from === i ? 1 : (k - from) / (i - from);
-    S.frames[k].delay = clampDelay(Math.max(MIN_DELAY, m0 + (ms - m0) * t));
+  const r = cv.getBoundingClientRect(), sl = curveDrag.slots, q = slotAt(sl, e.clientX - r.left);
+  const ms = Math.max(MIN_DELAY, curveMax * Math.max(0, Math.min(1, (r.height - 5 - (e.clientY - r.top)) / (r.height - 12))));
+  const only = S.picked.size > 1 ? S.picked : null;  // with a selection, only those frames change
+  const from = curveDrag.last ?? q.i, m0 = curveDrag.lastMs ?? ms;
+  for (let k = Math.min(from, q.i); k <= Math.max(from, q.i); k++) {  // fill slots a fast move skipped
+    const f = sl[k].f; if (only && !only.has(f)) continue;
+    const t = from === q.i ? 1 : (k - from) / (q.i - from);
+    f.delay = clampDelay(Math.max(MIN_DELAY, m0 + (ms - m0) * t));
   }
-  curveDrag.last = i; curveDrag.lastMs = ms;
+  curveDrag.last = q.i; curveDrag.lastMs = ms;
   [...$('#tiles').children].forEach((t, k) => { const inp = t.querySelector('input'); if (inp && S.frames[k]) inp.value = S.frames[k].delay; });
   updateInfo(); drawCurve();
 }
-$('#bCurveReset').onclick = () => ease('even');
-$('#curve').addEventListener('pointerdown', e => { if (S.frames.length < 2 || e.target.closest('#bCurveReset')) return; $('#curve').setPointerCapture(e.pointerId); curveDrag = {}; paintCurve(e); });
-$('#curve').addEventListener('pointermove', e => { if (curveDrag) paintCurve(e); });
-for (const ev of ['pointerup', 'pointercancel']) $('#curve').addEventListener(ev, () => { if (curveDrag) { curveDrag = null; changed(); } });
+$('#curve').addEventListener('pointerdown', e => {
+  if (seq.length < 2 || e.button !== 0 || e.target.closest('#bCurveMenu')) return;
+  $('#curve').setPointerCapture(e.pointerId);
+  curveDrag = { slots: curveSlots(), x0: e.clientX, y0: e.clientY, moved: false };
+});
+$('#curve').addEventListener('pointermove', e => {
+  if (!curveDrag) return;
+  if (!curveDrag.moved && Math.hypot(e.clientX - curveDrag.x0, e.clientY - curveDrag.y0) > 3) { curveDrag.moved = true; setPlaying(false); }
+  if (curveDrag.moved) paintCurve(e);
+});
+$('#curve').addEventListener('pointerup', e => {
+  if (!curveDrag) return;
+  const d = curveDrag; curveDrag = null;
+  if (d.moved) return changed();
+  const q = slotAt(d.slots, e.clientX - cv.getBoundingClientRect().left);  // a click: select that frame
+  pos = q.i; pick(q.f, e);
+});
+$('#curve').addEventListener('pointercancel', () => { if (curveDrag) { const m = curveDrag.moved; curveDrag = null; if (m) changed(); } });
+// presets menu: the ⋯ button on the curve or right-click
+const curveMenu = $('#curveMenu');
+function openCurveMenu(x, y) {
+  closeAdd?.(); closeCtx?.();
+  const n = S.picked.size > 1 ? S.picked.size : 0;
+  $('#cmHead').textContent = n ? `Timing · ${n} selected frames` : 'Timing · all frames';
+  $('#cmClear').classList.toggle('hidden', !n);
+  curveMenu.classList.remove('hidden');
+  curveMenu.style.left = Math.max(8, Math.min(x, innerWidth - curveMenu.offsetWidth - 8)) + 'px';
+  curveMenu.style.top = Math.max(8, Math.min(y - curveMenu.offsetHeight - 8, innerHeight - curveMenu.offsetHeight - 8)) + 'px';  // opens upwards
+}
+const closeCurveMenu = () => curveMenu.classList.add('hidden');
+$('#bCurveMenu').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); openCurveMenu(r.right - curveMenu.offsetWidth, r.top); };
+$('#curve').addEventListener('contextmenu', e => { e.preventDefault(); openCurveMenu(e.clientX, e.clientY); });
+for (const b of curveMenu.querySelectorAll('[data-ease]')) b.onclick = () => { closeCurveMenu(); ease(b.dataset.ease); };
+$('#cmAll').onclick = () => { closeCurveMenu(); S.picked = new Set(S.frames); S.anchor = S.frames[0]; renderSel(); updateInfo(); };
+$('#cmClear').onclick = () => { closeCurveMenu(); S.picked = new Set(); renderSel(); updateInfo(); };
+addEventListener('pointerdown', e => { if (!e.target.closest('#curveMenu, #bCurveMenu')) closeCurveMenu(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') closeCurveMenu(); });
 new ResizeObserver(drawCurve).observe($('#curve'));
 function placePlayhead() {
-  if (S.frames.indexOf(seq[pos]) !== curvePos && !curveDrag) drawCurve();
+  if (pos !== curvePos && !curveDrag) drawCurve();
   if (!seq.length || !ovTotal) return;
   const t = ovStart[pos] + (S.playing ? Math.min(acc, seq[pos].delay) : 0);
   $('#playhead').style.left = (t / ovTotal * 100) + '%';
@@ -1301,13 +1421,141 @@ function startGesture() {
 }
 // dragging the text, if there is one under the pointer; it comes before moving the picture
 let textDrag = null;
-function overText(p) { const b = textBox(), m = 6 * cssToScene(); return b && p.x >= b.x - m && p.x <= b.x + b.w + m && p.y >= b.y - m && p.y <= b.y + b.h + m; }
+function overText(p) {  // index of the topmost overlay under p (on the frame shown), or -1
+  const m = 6 * cssToScene();
+  for (let i = S.items.length - 1; i >= 0; i--) {
+    const b = !S.items[i].hidden && onFrame(S.items[i], seq[pos]) && textBox(S.items[i]);
+    if (b && p.x >= b.x - m && p.x <= b.x + b.w + m && p.y >= b.y - m && p.y <= b.y + b.h + m) return i;
+  }
+  return -1;
+}
+// right-click on a text: duplicate or delete it
+const ctxMenu = $('#ctxMenu'), ctxMenuOpen = () => !ctxMenu.classList.contains('hidden');
+function closeCtx() { if (ctxMenuOpen()) { ctxMenu.classList.add('hidden'); dirty = true; } }
+canvas.addEventListener('contextmenu', e => {
+  const i = overText(toScene(e)); if (i < 0) return;
+  e.preventDefault(); S.ti = i; openCtx(e.clientX, e.clientY);
+});
+function openCtx(x, y) {
+  textUI();
+  const one = !!curItem()?.frame;
+  $('#ctxAll').textContent = (one ? '' : '✓ ') + 'Every frame'; $('#ctxOne').textContent = (one ? '✓ ' : '') + 'Only this frame';
+  ctxMenu.classList.remove('hidden');
+  const r = ctxMenu.getBoundingClientRect();
+  ctxMenu.style.left = Math.min(x, innerWidth - r.width - 8) + 'px'; ctxMenu.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+  dirty = true;
+}
+// ---- layers panel: rows top to bottom; drag to reorder, eye to hide; background is fixed at the bottom ----
+let layerSel = false, layerDragFrom = -1;
+function layerInfo(L) {
+  if (L.type === 'frames') return { ic: '▶', name: `Frames (${S.frames.length})`, sub: '' };
+  if (L.type === 'layout') return { ic: '▣', name: S.layout?.name || 'Layout', sub: S.useLayout ? '' : 'off' };
+  if (L.type === 'image') return { ic: '◩', name: L.name, sub: L.frame ? 'one frame' : '' };
+  return { ic: 'T', name: L.str?.trim() ? `“${L.str}”` : '(empty text)', sub: L.frame ? 'one frame' : '' };
+}
+function renderLayers() {
+  const box = $('#layers'); if (!box || layerDragFrom >= 0) return;
+  box.textContent = '';
+  for (let i = S.items.length - 1; i >= 0; i--) {
+    const L = S.items[i];
+    if (L.type === 'layout' && !S.layout) continue;
+    const info = layerInfo(L), row = document.createElement('div');
+    row.className = 'layer' + (i === S.ti ? ' sel' : '') + (L.hidden ? ' off' : ''); row.draggable = true; row.dataset.i = i;
+    row.innerHTML = `<button class="eye" title="Show / hide">${L.hidden ? '◌' : '👁'}</button><span class="lic"></span><span class="lname"></span><span class="lsub"></span>`;
+    row.querySelector('.lic').textContent = info.ic; row.querySelector('.lname').textContent = info.name; row.querySelector('.lsub').textContent = info.sub;
+    row.querySelector('.eye').onclick = e => { e.stopPropagation(); L.hidden = !L.hidden; renderLayers(); dirty = true; };
+    row.onclick = () => { S.ti = i; layerSel = true; textUI(); dirty = true; };
+    row.oncontextmenu = e => { if (!isOverlay(L)) return; e.preventDefault(); S.ti = i; openCtx(e.clientX, e.clientY); };
+    row.ondragstart = e => { layerDragFrom = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-layer', String(i)); };
+    row.ondragend = () => { layerDragFrom = -1; renderLayers(); };
+    row.ondragover = e => {
+      if (layerDragFrom < 0) return; e.preventDefault(); e.stopPropagation();
+      const r = row.getBoundingClientRect(), top = e.clientY < r.top + r.height / 2;
+      for (const x of box.children) x.classList.remove('dragover-top', 'dragover-bottom');
+      row.classList.add(top ? 'dragover-top' : 'dragover-bottom');
+    };
+    row.ondrop = e => {
+      if (layerDragFrom < 0) return; e.preventDefault(); e.stopPropagation();
+      const r = row.getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
+      const sel = S.items[S.ti], [L0] = S.items.splice(layerDragFrom, 1);
+      let to = S.items.indexOf(L) + (above ? 1 : 0);  // rows are shown top to bottom, the list is bottom to top
+      S.items.splice(to, 0, L0); S.ti = S.items.indexOf(sel);
+      layerDragFrom = -1; renderLayers(); dirty = true;
+    };
+    box.append(row);
+  }
+  const bg = document.createElement('div'); bg.className = 'layer fixed';
+  bg.innerHTML = `<span class="eye"></span><span class="lic">■</span><span class="lname"></span><span class="lsub">background</span>`;
+  bg.querySelector('.lname').textContent = S.bgImg ? S.bgImg.name : S.clear ? 'Transparent' : S.bg;
+  bg.title = 'Set in Picture → Background';
+  bg.onclick = () => { $('#menu').querySelector('details:has(#bgClear)').open = true; };
+  box.append(bg);
+}
+function setWhere(one) {
+  const t = curItem(); if (!t) return;
+  t.frame = one ? (seq[pos] || S.frames[0])?.id : null; textUI(); dirty = true;
+}
+$('#ctxAll').onclick = () => { setWhere(false); closeCtx(); };
+$('#ctxOne').onclick = () => { setWhere(true); closeCtx(); };
+for (const b of $('#ovWhere').children) b.onclick = () => setWhere(b.dataset.where === 'one');
+$('#ctxDup').onclick = () => {
+  const t = curItem(); if (!t) return closeCtx();
+  S.items.splice(S.ti + 1, 0, { ...t, x: t.x + 0.03, y: t.y + 0.03 }); S.ti++; textUI(); closeCtx();
+};
+$('#ctxDel').onclick = () => {
+  if (curItem()) S.items.splice(S.ti, 1);
+  S.ti = S.items.findLastIndex(isOverlay); textUI(); closeCtx();
+};
+// + Add: text, an image overlay, or frames
+const addMenu = $('#addMenu');
+function closeAdd() { addMenu.classList.add('hidden'); }
+addEventListener('pointerdown', e => { if (!e.target.closest('#layers, #ovBox')) { if (layerSel) dirty = true; layerSel = false; } if (!e.target.closest('#ctxMenu')) closeCtx(); if (!e.target.closest('#addMenu, #bAdd')) closeAdd(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') { closeCtx(); closeAdd(); } });
+function openOverlaySettings(focusText) {
+  toggleMenu(true); $('#ovBox').open = true;
+  if (focusText) setTimeout(() => { $('#txt').focus(); $('#txt').select(); }, 50);
+}
+// export settings: right-click the Export button
+const expMenu = $('#expMenu');
+function closeExp() { expMenu.classList.add('hidden'); }
+$('#bExport').addEventListener('contextmenu', e => {
+  e.preventDefault(); closeAdd(); closeCtx();
+  const r = $('#bExport').getBoundingClientRect();
+  expMenu.classList.remove('hidden');
+  expMenu.style.left = Math.max(8, Math.min(r.right - expMenu.offsetWidth, innerWidth - expMenu.offsetWidth - 8)) + 'px';
+  expMenu.style.top = r.bottom + 8 + 'px';
+});
+$('#expGo').onclick = () => { closeExp(); $('#bExport').click(); };
+addEventListener('pointerdown', e => { if (!e.target.closest('#expMenu')) closeExp(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') closeExp(); });
+let addAt = null;  // where a right-click on the preview opened the add menu (fractions of the GIF); new layers go there
+$('#addText').onclick = () => {
+  closeAdd(); if (!S.box) return say('Add frames first, then text.', true);
+  const at = addAt || { x: 0.08, y: 0.08 };
+  S.items.push({ ...S.tdef, type: 'text', str: 'Text', x: at.x, y: at.y, frame: null }); S.ti = S.items.length - 1;
+  textUI(); dirty = true; openOverlaySettings(true);
+};
+$('#addImg').onclick = () => { closeAdd(); if (!S.box) return say('Add frames first, then an image.', true); $('#ovFile').click(); };
+$('#addFiles').onclick = () => { closeAdd(); $('#file').click(); };
+async function addImageLayer(f, n = 0, at = null) {  // n: offsets several dropped images a little; at: top left, else centered
+  try {
+    const b = await decodeImage(f), bmp = await shrink(b, b.width, b.height, MAX_WIDTH), sc = scene();
+    const size = Math.min(0.35, bmp.width / sc.w), ar = bmp.height / bmp.width;
+    const x = at ? at.x : (1 - size) / 2 + n * 0.03, y = at ? at.y : (1 - size * ar * sc.w / sc.h) / 2 + n * 0.03;
+    S.items.push({ type: 'image', bmp, name: f.name, ar, size, x, y, frame: null });
+    S.ti = S.items.length - 1; textUI(); dirty = true;
+  } catch (err) { console.warn(err); say(`${f.name}: not an image this browser can read`, true); }
+}
+$('#ovFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) addImageLayer(f, 0, addAt); };
 canvas.addEventListener('pointerdown', e => {
   const p = toScene(e);
-  if (overText(p)) {
+  const ti = e.button === 0 ? overText(p) : -1;
+  if (ti >= 0) {
     e.stopImmediatePropagation(); canvas.setPointerCapture(e.pointerId);
+    S.ti = ti; textUI();
     textDrag = { id: e.pointerId, p0: p, x0: S.text.x, y0: S.text.y }; dirty = true; return;
   }
+  if (e.button !== 0) return;
   if (!interactive()) return;
   canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, toScene(e));
   startGesture(); dragView = true; dirty = true;
@@ -1319,7 +1567,7 @@ canvas.addEventListener('pointermove', e => {
     S.text.x = textDrag.x0 + (p.x - textDrag.p0.x) / sc.w; S.text.y = textDrag.y0 + (p.y - textDrag.p0.y) / sc.h;
     textUI(); dirty = true; return;
   }
-  if (!ptrs.has(e.pointerId) && overText(toScene(e))) { canvas.style.cursor = 'move'; return; }
+  if (!ptrs.has(e.pointerId) && overText(toScene(e)) >= 0) { canvas.style.cursor = 'move'; return; }
   if (!interactive()) { canvas.style.cursor = ''; return; }
   if (!ptrs.has(e.pointerId)) {  // hover cursor
     const h = hitHandle(toScene(e));
@@ -1363,6 +1611,14 @@ const endPtr = e => {
 canvas.addEventListener('pointerup', endPtr);
 canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('wheel', e => {
+  const oi = overText(toScene(e));
+  if (oi >= 0) {  // resize the overlay under the pointer, keeping its center
+    e.preventDefault();
+    const t = S.items[oi], b0 = textBox(t), sc = scene();
+    t.size = Math.max(0.005, Math.min(3, t.size * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015))));
+    const b1 = textBox(t); t.x += (b0.w - b1.w) / 2 / sc.w; t.y += (b0.h - b1.h) / 2 / sc.h;
+    S.ti = oi; textUI(); dirty = true; return;
+  }
   if (!interactive()) return;
   e.preventDefault();
   scaleAround(toScene(e), Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)));
@@ -1450,7 +1706,7 @@ function changed() {
   $('#useLayout').checked = $('#useLayout2').checked = S.useLayout;
   $('#layoutName').textContent = S.layout ? `${S.layout.name} · ${S.layout.w}×${S.layout.h}` : 'no layout';
   $('#bExport').disabled = !S.frames.length;
-  renderStrip(); sizePreview(); updateInfo(); syncScale();
+  renderStrip(); sizePreview(); updateInfo(); syncScale(); renderLayers();
 }
 function updateInfo() {
   const n = S.frames.length;
@@ -1462,7 +1718,7 @@ function updateInfo() {
   const T = targets(), same = T.every(f => f.delay === T[0].delay) ? T[0].delay : '';  // empty shows "mixed"
   if (document.activeElement !== $('#defDelay')) $('#defDelay').value = same;
   if (document.activeElement !== $('#fps')) $('#fps').value = same && +(1000 / same).toFixed(1);
-  drawOverview(); if (!curveDrag) drawCurve(); textUI();
+  if (!curveDrag) { drawOverview(); drawCurve(); } textUI();
   $('#exportInfo').textContent = exportText();
 }
 function exportText() {
@@ -1537,7 +1793,6 @@ function ease(kind) {
   T.forEach((f, i) => { f.delay = clampDelay(Math.max(MIN_DELAY, total * w[i] / sw)); });
   changed();
 }
-for (const b of $('#easeSeg').children) b.onclick = () => ease(b.dataset.ease);
 $('#fade').oninput = () => { S.fade = +$('#fade').value; $('#fadeOut').textContent = S.fade ? S.fade + ' fr' : 'off'; dirty = true; };
 $('#onion').onchange = e => { S.onion = e.target.checked; dirty = true; };
 // key color and filters: preview right away, thumbnails a moment later
@@ -1559,11 +1814,18 @@ for (const [id, [k, prop]] of Object.entries(fxInputs)) $('#' + id).oninput = ()
 // text: X, Y and size shown in px of the exported GIF
 for (const name of Object.keys(FONTS)) $('#txtFont').append(new Option(name, name));
 function textUI() {
+  const cur = curItem(); renderLayers();
+  $('#ovBox').classList.toggle('img', cur?.type === 'image'); $('#ovBox').classList.toggle('none', !cur);
+  for (const b of $('#ovWhere').children) b.classList.toggle('on', (b.dataset.where === 'one') === !!cur?.frame);
+  if (document.activeElement !== $('#txt')) $('#txt').value = cur?.type === 'text' ? cur.str : '';
   const o = outSize(), set = (id, v) => { if (document.activeElement !== $(id)) $(id).value = Math.round(v); };
   set('#txtX', S.text.x * o.w); set('#txtY', S.text.y * o.h); set('#txtSize', S.text.size * o.w);
   $('#txtFont').value = S.text.font; $('#txtBold').checked = S.text.bold;
 }
-$('#txt').oninput = () => { S.text.str = $('#txt').value; dirty = true; };
+$('#txt').oninput = () => {
+  if (curItem()?.type !== 'text') { S.items.push({ ...S.tdef, type: 'text', frame: null }); S.ti = S.items.length - 1; }  // typing starts a new text
+  S.text.str = $('#txt').value; dirty = true;
+};
 $('#txtFont').onchange = () => { S.text.font = $('#txtFont').value; dirty = true; };
 $('#bFont').onclick = () => $('#fontFile').click();
 $('#fontFile').onchange = async e => {
@@ -1593,7 +1855,25 @@ $('#bPlay').onclick = () => setPlaying(!S.playing);
 setPlaying(S.playing);
 addEventListener('pointerdown', e => { if (!menu.classList.contains('folded') && !e.target.closest('#menu, #bMenu, #dialog')) toggleMenu(false); });
 $('#bBoom').onclick = () => { S.boomerang = !S.boomerang; $('#bBoom').classList.toggle('on', S.boomerang); changed(); };
-$('#bAdd').onclick = $('#pick').onclick = () => $('#file').click();
+$('#pick').onclick = () => $('#file').click();
+function openAdd(x, y, at = null) {
+  addAt = at; closeCtx(); closeExp?.();
+  addMenu.classList.remove('hidden');
+  addMenu.style.left = Math.max(8, Math.min(x, innerWidth - addMenu.offsetWidth - 8)) + 'px';
+  addMenu.style.top = Math.max(8, Math.min(y, innerHeight - addMenu.offsetHeight - 8)) + 'px';
+}
+$('#bAdd').onclick = () => {
+  if (!addMenu.classList.contains('hidden')) return closeAdd();
+  const r = $('#bAdd').getBoundingClientRect(); openAdd(r.left, r.bottom + 8);
+};
+// right-click on the preview (not on a text or image layer): the add menu, new layers go where you clicked
+$('#stage').addEventListener('contextmenu', e => {
+  if (e.defaultPrevented) return;  // a layer was right-clicked
+  e.preventDefault();
+  let at = null;
+  if (S.box && e.target === canvas) { const p = toScene(e), sc = scene(); at = { x: p.x / sc.w, y: p.y / sc.h }; }
+  openAdd(e.clientX, e.clientY, at);
+});
 $('#file').onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
 $('#bLayout').onclick = () => $('#layoutFile').click();
 $('#layoutFile').onchange = e => { if (e.target.files[0]) setLayout(e.target.files[0]); e.target.value = ''; };
@@ -1623,7 +1903,7 @@ function setBg(clear, color = S.bg, img = null) {
   root.classList.toggle('clearbg', S.clear); root.classList.toggle('imgbg', !!img);
   root.style.setProperty('--framebg', color);
   root.style.setProperty('--framebgimg', img ? `url("${img.url}")` : 'none');
-  palettes.clear(); sampleCache = null; drawOverview(); dirty = true;
+  palettes.clear(); sampleCache = null; drawOverview(); dirty = true; renderLayers();
 }
 $('#bg').oninput = e => setBg(false, e.target.value);
 $('#bgClear').onchange = e => setBg(e.target.checked);
@@ -1663,8 +1943,17 @@ let depth = 0;
 const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
 addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; document.body.classList.add('dragging'); });
 addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
-addEventListener('dragover', e => { e.preventDefault(); if (hasFiles(e)) e.dataTransfer.dropEffect = 'copy'; });
+// with frames already there, the drop overlay splits: left adds frames, right adds layers on top
+const splitDrop = () => S.frames.length > 0 && !S.demo;
+const dropZone = e => splitDrop() && e.clientX > innerWidth / 2 ? 'layer' : 'frames';
+addEventListener('dragover', e => {
+  e.preventDefault(); if (!hasFiles(e)) return;
+  e.dataTransfer.dropEffect = 'copy';
+  $('#drop').classList.toggle('split', splitDrop());
+  const z = dropZone(e); for (const el of $('#drop').children) el.classList.toggle('hot', el.dataset.z === z);
+});
 addEventListener('drop', async e => {
+  const zone = dropZone(e);
   e.preventDefault(); depth = 0; document.body.classList.remove('dragging'); $('#layoutBox').classList.remove('droptarget');
   // entries must be taken synchronously, before the first await
   const entries = [...(e.dataTransfer?.items || [])].filter(i => i.kind === 'file').map(i => i.webkitGetAsEntry?.()).filter(Boolean);
@@ -1675,8 +1964,12 @@ addEventListener('drop', async e => {
     say('');
   }
   if (!files.length) return;
-  if (!entries.some(x => x.isDirectory) && !isZip(files[0]) && e.target.closest?.('#layoutBox') && (isImage(files[0]) || isPdf(files[0]))) setLayout(files[0]);
-  else handleFiles(files);
+  if (!entries.some(x => x.isDirectory) && !isZip(files[0]) && e.target.closest?.('#layoutBox') && (isImage(files[0]) || isPdf(files[0]))) return setLayout(files[0]);
+  if (zone === 'layer') {  // images become layers; anything else (video, zip, pdf) is handled as usual
+    const imgs = files.filter(f => isImage(f) && !isPdf(f)), rest = files.filter(f => !imgs.includes(f));
+    for (let n = 0; n < imgs.length; n++) await addImageLayer(imgs[n], n);
+    if (rest.length) handleFiles(rest);
+  } else handleFiles(files);
 });
 $('#layoutBox').addEventListener('dragover', e => { if (hasFiles(e)) $('#layoutBox').classList.add('droptarget'); });
 $('#layoutBox').addEventListener('dragleave', () => $('#layoutBox').classList.remove('droptarget'));
@@ -1730,7 +2023,7 @@ function concrete(step) {
   const F = frameRect(), k = s.W / scene().w;
   const x0 = Math.max(0, Math.floor(F.x * k)), y0 = Math.max(0, Math.floor(F.y * k));
   const x1 = Math.min(s.W, Math.ceil((F.x + F.w) * k)), y1 = Math.min(s.H, Math.ceil((F.y + F.h) * k));
-  s.region = layoutOn() && !S.clear ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
+  s.region = layoutOn() && !S.clear && !S.items.some(t => t.frame && !t.hidden) ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
   return s;
 }
 const exportCanvas = document.createElement('canvas'), picCanvas = document.createElement('canvas');
@@ -1738,13 +2031,10 @@ function renderExport(s, f, i) {
   const c = exportCanvas; if (c.width !== s.W || c.height !== s.H) { c.width = s.W; c.height = s.H; }
   const g = c.getContext('2d', { willReadFrequently: true }), at = { i, n: s.list.length };
   if (s.pic === 1) { drawScene(g, s.W, s.H, f, false, at); return g; }
-  // picture at lower resolution, enlarged without smoothing (compresses far better); layout stays sharp
+  // the frames at lower resolution, enlarged without smoothing (compresses far better); every other layer stays sharp
   const p = picCanvas; p.width = Math.max(1, Math.round(s.W * s.pic)); p.height = Math.max(1, Math.round(s.H * s.pic));
-  drawScene(p.getContext('2d'), p.width, p.height, f, false, { ...at, layout: false, text: false });
-  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, s.W, s.H); g.imageSmoothingEnabled = false; g.drawImage(p, 0, 0, s.W, s.H);
-  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-  if (layoutOn()) g.drawImage(S.layout.img, 0, 0, s.W, s.H);
-  const k = s.W / scene().w; g.setTransform(k, 0, 0, k, 0, 0); drawText(g); g.setTransform(1, 0, 0, 1, 0, 0);  // text stays sharp
+  drawScene(p.getContext('2d'), p.width, p.height, f, false, { ...at, framesOnly: true });
+  drawScene(g, s.W, s.H, f, false, { ...at, framesFrom: p });
   return g;
 }
 const regionOf = (g, r) => g.getImageData(r.x, r.y, r.w, r.h).data;
@@ -1821,7 +2111,7 @@ async function encodeAll(enc, s, onProgress) {
 let estKey = '', estAt = 0, estRun = 0, estDone = '', estPromise = null, exporting = false;
 const sceneKey = () => [S.frames.map(f => f.id).join(','), seq.length, S.useLayout, S.layout?.name, S.layout?.w,
   JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg, S.bgImg?.url, S.alpha,
-  S.fade, S.outW, JSON.stringify(S.fx), JSON.stringify(S.text)].join('|');
+  S.fade, S.outW, JSON.stringify(S.fx), JSON.stringify(S.items.map(t => ({ ...t, bmp: undefined })))].join('|');
 async function runEstimate(key) {
   const id = ++estRun, enc = startEncoder();
   palettes.clear(); sampleCache = null;
