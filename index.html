@@ -62,6 +62,8 @@
     background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 60%), var(--fill-hi);
     box-shadow: 0 2px 10px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.3), inset 0 0 0 1px var(--line); }
   button.primary:hover { background: linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,.04) 60%), var(--fill-hi); }
+  #estSize { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #estSize:not(:empty)::before { content: '· '; }
   button.primary:disabled { background: var(--fill); color: var(--muted); box-shadow: none; filter: none; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -274,7 +276,7 @@
   <button id="bBoom" class="icon" data-tip="Boomerang: forward, then backward" aria-label="Boomerang"><svg class="i"><use href="#i-boom"/></svg></button>
   <label id="floatSwitch" class="switch" data-tip="Place the GIF into a PNG / PDF layout"><input type="checkbox" id="useLayout"><span class="track"></span><span class="lbl lbl-opt">Layout</span></label>
   <span class="sep"></span>
-  <button id="bExport" class="primary" disabled data-tip="Save as GIF"><svg class="i"><use href="#i-export"/></svg>Export</button>
+  <button id="bExport" class="primary" disabled data-tip="Save as GIF · estimated file size"><svg class="i"><use href="#i-export"/></svg>Export<span id="estSize"></span></button>
   <button id="bMenu" class="icon" aria-label="Settings" data-tip="Settings"><svg class="i"><use href="#i-more"/></svg></button>
 </div>
 
@@ -1453,10 +1455,34 @@ async function encodeAll(enc, s, onProgress) {
   const done = await enc.call({ type: 'end' });
   return { blob: new Blob(done.parts, { type: 'image/gif' }) };
 }
+// ---- size estimate on the export button: runs in the background once nothing has changed for a moment ----
+let estKey = '', estAt = 0, estRun = 0, estDone = '', estPromise = null, exporting = false;
+const sceneKey = () => [S.frames.map(f => f.id).join(','), seq.length, S.useLayout, S.layout?.name, S.layout?.w,
+  JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg].join('|');
+async function runEstimate(key) {
+  const id = ++estRun, enc = startEncoder();
+  palettes.clear(); sampleCache = null;
+  try {
+    const ok = () => id === estRun;
+    let i = 0, size = await estimate(enc, LADDER[0]);
+    while (ok() && size > MAX_BYTES * 0.93 && i < LADDER.length - 1) size = await estimate(enc, LADDER[++i]);  // what export would pick
+    if (ok()) { $('#estSize').textContent = '≈ ' + fmtMB(Math.min(size, MAX_BYTES)); estDone = key; }
+  } catch (err) { console.warn('estimate', err); }
+  finally { enc.stop(); palettes.clear(); sampleCache = null; }
+}
+setInterval(() => {
+  if (exporting) return;
+  const key = sceneKey();
+  if (key !== estKey) { estKey = key; estAt = performance.now(); estRun++; if (key !== estDone) $('#estSize').textContent = seq.length ? '…' : ''; return; }
+  if (key !== estDone && seq.length && !estPromise && performance.now() - estAt > 700 && !dragView)
+    estPromise = runEstimate(key).finally(() => { estPromise = null; });
+}, 300);
+
 function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#status').classList.toggle('busy', p !== null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
 $('#bExport').onclick = async () => {
   if (!seq.length) return;
   const btn = $('#bExport'); btn.disabled = true;
+  exporting = true; estRun++; await estPromise;  // stop a background estimate; they share the caches
   const enc = startEncoder(); palettes.clear(); sampleCache = null;
   const wasPlaying = S.playing; setPlaying(false);
   try {
@@ -1494,10 +1520,11 @@ $('#bExport').onclick = async () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    $('#estSize').textContent = fmtMB(blob.size); estDone = sceneKey();
     say(`Saved ${name} · ${fmtMB(blob.size)} · ${s.W}×${s.H} · ${s.list.length} frames · ${describe(s)}`);
   } catch (err) { console.error(err); say('Export failed: ' + err.message, true); }
   enc.stop(); sampleCache = null;
-  progress(null); btn.disabled = !S.frames.length; if (wasPlaying) setPlaying(true);
+  progress(null); btn.disabled = !S.frames.length; if (wasPlaying) setPlaying(true); exporting = false;
 };
 
 // ---- example on startup: a ball falling in 5 frames (top → squash on the ground), played as boomerang ----
