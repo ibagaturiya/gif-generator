@@ -27,6 +27,10 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; color: var(--fg);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  /* an app, not a document: clicks, double-clicks and right-clicks never select text; only fields can be selected */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
+  img, svg, canvas { -webkit-user-drag: none; }
   body { background: radial-gradient(circle, var(--dot) 1.1px, transparent 1.6px) 0 0 / 22px 22px, var(--bg); }  /* dotted canvas */
   .hidden { display: none !important; }
   .muted, .note { color: var(--muted); }
@@ -225,6 +229,7 @@
   :is(#menu, #inspPanel) select:focus { outline: none; border-color: var(--accent); }
   :is(#menu, #inspPanel) select option { color: #000; }
   #txtX, #txtY { width: 4.6em; }
+  #resLabel { position: fixed; z-index: 1; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #cropBar { top: 70px; left: 50%; transform: translateX(-50%); z-index: 4; padding: 5px 5px 5px 16px; border-radius: 999px; display: flex; align-items: center; gap: 8px; white-space: nowrap; animation: pop .2s ease-out; }
   #cropBar #cropHint { color: var(--muted); margin-right: 6px; }
   #cropBar button { padding: 6px 14px; }
@@ -232,6 +237,14 @@
   #ctxMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 140px; animation: pop .15s ease-out; transform-origin: top left; }
   #ctxMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; }
   #ctxMenu #ctxDel { color: var(--accent); }
+  #qualMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 250px; animation: pop .15s ease-out; transform-origin: top right; }
+  #qualMenu .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px 4px; }
+  #qualMenu button { display: grid; grid-template-columns: 16px 1fr auto; text-align: left; align-items: center; column-gap: 8px; border-radius: 9px; padding: 7px 10px; background: none; box-shadow: none; }
+  #qualMenu button:hover { background: var(--fill); }
+  #qualMenu .ck { color: var(--accent); font-weight: 700; }
+  #qualMenu .qn { font-weight: 500; } #qualMenu .qd { grid-column: 2; font-size: 11px; color: var(--muted); }
+  #qualMenu .qwait { font-size: 11px; color: var(--muted); padding: 6px 10px 6px; max-width: 250px; }
+  #qualMenu .qs { grid-row: 1 / 3; grid-column: 3; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
   #addMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 170px; animation: pop .15s ease-out; transform-origin: top left; }
   #addMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; gap: 10px; }
   #addMenu b { width: 18px; text-align: center; font-family: Georgia, serif; font-size: 16px; }
@@ -254,6 +267,15 @@
   #expMenu .erow { display: flex; align-items: center; gap: 10px; }
   #expMenu .seg { flex: 1; }
   #expMenu .seg button { padding: 4px 6px; }
+  #expMenu #outRatio, #expMenu #outH, #expMenu #outCustom { width: 6em; font: inherit; color: var(--fg); background: var(--fill); border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+  #expMenu #outRatio:focus, #expMenu #outH:focus, #expMenu #outCustom:focus { outline: none; border-color: var(--accent); }
+  #bLink { width: 26px; height: 26px; padding: 0; color: var(--muted); background: none; box-shadow: none; }
+  #bLink.on { color: var(--accent); }
+  #bLink .i { width: 15px; height: 15px; }
+  #resLabel { text-align: right; line-height: 1.35; }
+  #resLabel span { opacity: .7; }
+  #resLabel { cursor: pointer; padding: 1px 6px; margin-right: -6px; border-radius: 6px; }
+  #resLabel:hover { color: var(--fg); background: var(--fill); }
   .msep { height: 1px; background: var(--line); margin: 4px 6px; }
   :is(#menu, #inspPanel) .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
   #ovBox.img .tonly, #ovBox.none .tonly:not(#txt) { display: none; }
@@ -368,6 +390,8 @@
   <symbol id="i-images" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="m14.5 6.5 3 3M4 20l1.5-4.5L15 6l3 3-9.5 9.5z"/><path d="M15 6l2-2a2.1 2.1 0 0 1 3 3l-2 2"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.7-5.7l-1.6 1.6M14 10.5a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.7 5.7l1.6-1.6"/></symbol>
+  <symbol id="i-unlink" viewBox="0 0 24 24"><path d="M15.5 12.5l3.5-3.5a4 4 0 0 0-5.7-5.7l-2 2M8.5 11.5L5 15a4 4 0 0 0 5.7 5.7l2-2M8 3v3M3 8h3M16 21v-3M21 16h-3"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
 </svg>
 
@@ -403,10 +427,10 @@
     <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
   </div></div>
 <div id="expMenu" class="ui hidden">
-  <div class="sub">Export</div>
-  <div class="erow"><span class="muted">Width</span><div class="seg" id="outSeg"><button data-w="0" title="As large as fits the size budget">Auto</button><button data-w="1200">1200</button><button data-w="800">800</button><button data-w="480">480</button></div></div>
+  <div class="sub">GIF size</div>
+  <div class="erow"><input id="outCustom" type="number" min="16" max="4000" step="1" title="Width in px · empty = automatic (source size, at most 2070 px wide)"><button id="bLink" class="icon on" title="Keep the aspect ratio"><svg class="i"><use href="#i-link"/></svg></button><input id="outH" type="number" min="16" max="4000" step="1" title="Height in px"><span class="muted">px</span></div>
+  <div class="erow"><input id="outRatio" type="text" spellcheck="false" title="Aspect ratio, e.g. 16:9, 1:1 or 1.85 · keeps the width, sets the height (stretches if it differs from the picture)"><span class="muted">aspect ratio</span></div>
   <div class="note" id="exportInfo"></div>
-  <button id="expGo" class="primary"><svg class="i"><use href="#i-export"/></svg>Export GIF</button>
 </div>
 <div id="curveMenu" class="ui hidden pop">
   <div class="sub" id="cmHead">Timing</div>
@@ -418,10 +442,12 @@
   <button id="cmAll">Select all frames</button>
   <button id="cmClear">Clear selection</button>
 </div>
+<div id="qualMenu" class="ui hidden"></div>
 <div id="addMenu" class="ui hidden"><button id="addText"><b>T</b>Text</button><button id="addImg"><svg class="i"><use href="#i-images"/></svg>Image</button><span class="msep"></span><button id="addPic"><svg class="i"><use href="#i-sliders"/></svg>Picture…</button><button id="addCropReset" class="hidden"><svg class="i"><use href="#i-sliders"/></svg>Reset crop</button><span class="msep"></span><button id="addFiles"><svg class="i"><use href="#i-plus"/></svg>Choose files…</button></div>
 
 <main id="stage">
   <canvas id="preview" class="hidden"></canvas>
+  <div id="resLabel" title="Size of the exported GIF · click to change"></div>
   <div id="empty" class="ui" style="position:relative">
     <div class="big"><svg class="i"><use href="#i-images"/></svg></div>
     <strong>Drop your frames here</strong>
@@ -727,7 +753,11 @@ onmessage = ({ data: m }) => {
 
 <script>
 // ---- Quality ----
-const MAX_BYTES = 15e6;         // export size budget; the encoder picks the best settings that fit (see LADDER)
+// export quality (right-click Export): fixed recipes (steps of LADDER); the menu shows only those that give a really smaller file
+const QCANDS = [{ step: 0, note: 'every pixel as is' }, { step: 2, note: 'looks the same' }, { step: 5, note: 'fewer colors, a bit softer' }, { step: 7, note: 'fewer colors, softer' }];
+const QNAMES = [[], ['Full quality'], ['Full quality', 'Smallest'], ['Full quality', 'Smaller', 'Smallest'], ['Full quality', 'Balanced', 'Smaller', 'Smallest']];
+const AUTO_BYTES = 15e6;          // automatic choice: the best quality under this
+const HARD_BYTES = 80e6;          // a chosen quality only steps down above this
 const MAX_WIDTH = 2070;         // export width in px (A3 at 177 dpi); larger layouts are scaled down to this
 const COLORS = 255;             // most colors used (255 + 1 transparent), one palette shared by all frames
 const DITHER = true;            // ordered dithering: smooth gradients, compresses well, no flicker
@@ -754,7 +784,8 @@ const S = {
   ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
   crop: false,                     // crop mode: gestures move the picture, not the frame
   picked: new Set(), anchor: null,  // shift-click range in the filmstrip
-  onion: false, fade: 0, outW: 0,  // outW: export width, 0 = auto
+  qStep: null,  // chosen quality (a LADDER step), null = automatic: best quality under AUTO_BYTES
+  onion: false, fade: 0, outW: 0, outH: 0, link: true,  // outH only when unlinked (stretches the GIF)  // outW: export width, 0 = auto
   fx: { key: false, keyColor: '#ffffff', keyTol: 20, bw: false, contrast: 0, poster: 1 },
   items: [{ type: 'frames' }, { type: 'layout' }], ti: -1,  // layers, bottom to top: frames, layout, text and image overlays; ti: the selected one
   tdef: { str: '', x: 0.05, y: 0.84, size: 0.06, font: 'System', bold: true, color: '#000000' },  // x, y (top left) and size as fractions of the GIF
@@ -1160,8 +1191,12 @@ function clampScale(r, f) {  // keep sizes sensible: frame 2%–5000% of the sou
   return Math.min(hi, Math.max(lo, r.w * f)) / r.w;
 }
 function outSize() {
-  const sc = scene(), k = Math.min(1, (S.outW || MAX_WIDTH) / sc.w);
-  return { w: Math.max(1, Math.round(sc.w * k)), h: Math.max(1, Math.round(sc.h * k)) };
+  const sc = scene(), k = S.outW ? S.outW / sc.w : Math.min(1, MAX_WIDTH / sc.w);  // a typed width may also enlarge
+  return { w: Math.max(1, Math.round(sc.w * k)), h: !S.link && S.outH ? S.outH : Math.max(1, Math.round(sc.h * k)) };
+}
+function ratioText(w, h) {  // 4:3, 16:9 … or 1.85:1
+  const gcd = (a, b) => b ? gcd(b, a % b) : a, d = gcd(w, h);
+  return w / d <= 32 && h / d <= 32 ? `${w / d}:${h / d}` : `${(w / h).toFixed(2).replace(/\.?0+$/, '')}:1`;
 }
 function scaleAround(p, f) {
   const r = target(); if (!r) return;
@@ -1231,7 +1266,7 @@ function drawItem(g, t, f) {
   g.restore();
 }
 function drawScene(g, W, H, f, preview, opts = {}) {
-  const sc = scene(), vr = opts.vr, k = vr ? W / vr.w : W / sc.w, ox = vr ? -vr.x * k : 0, oy = vr ? -vr.y * k : 0;
+  const sc = scene(), vr = opts.vr, k = vr ? W / vr.w : W / sc.w, ky = vr ? k : H / sc.h, ox = vr ? -vr.x * k : 0, oy = vr ? -vr.y * k : 0;
   g.setTransform(1, 0, 0, 1, 0, 0);
   if (vr) {  // crop view: the scene sits inside a margin; its background is drawn only on the scene
     g.clearRect(0, 0, W, H); g.setTransform(k, 0, 0, k, ox, oy);
@@ -1241,7 +1276,7 @@ function drawScene(g, W, H, f, preview, opts = {}) {
   } else if (S.clear || opts.framesOnly) g.clearRect(0, 0, W, H);  // the preview shows a checkerboard behind (CSS)
   else { g.fillStyle = S.bg; g.fillRect(0, 0, W, H); }
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-  g.setTransform(k, 0, 0, k, ox, oy);
+  g.setTransform(k, 0, 0, ky, ox, oy);
   if (S.bgImg && !opts.framesOnly) {  // background image covers the whole GIF
     const b = S.bgImg.bmp, s = Math.max(sc.w / b.width, sc.h / b.height);
     g.drawImage(b, (sc.w - b.width * s) / 2, (sc.h - b.height * s) / 2, b.width * s, b.height * s);
@@ -1329,18 +1364,37 @@ function animateView(target) {  // target: a rect, or null for the plain scene
   };
   viewAnim = requestAnimationFrame(step);
 }
+// the GIF's resolution, just below the preview's bottom right corner
+function placeRes() {
+  const el = $('#resLabel'), r = canvas.getBoundingClientRect();
+  if (canvas.classList.contains('hidden') || !seq.length || view || !r.width) { el.style.display = 'none'; return; }
+  const o = outSize(); el.innerHTML = `${o.w} × ${o.h} px<br><span>${ratioText(o.w, o.h)}${S.link ? '' : ' · stretched'}</span>`; el.style.display = '';
+  el.style.left = r.right - el.offsetWidth + 6 + 'px'; el.style.top = r.bottom + 4 + 'px';
+}
+new ResizeObserver(() => placeRes()).observe(canvas);
+addEventListener('resize', () => placeRes());
 function sizePreview() {
-  const st = $('#stage').getBoundingClientRect(), sc = viewRect();
-  const k = Math.min((st.width - 2) / sc.w, (st.height - 2 - (S.demo ? 56 : 0)) / sc.h);
+  const st = $('#stage').getBoundingClientRect(), v = viewRect(), o = outSize();
+  const sc = view ? v : { w: v.w, h: v.w * o.h / o.w };  // unlinked width/height: the preview is stretched like the GIF
+  const k = Math.min((st.width - 2) / sc.w, (st.height - 38 - (S.demo ? 56 : 0)) / sc.h);
   if (!(k > 0)) return;
   const w = Math.floor(sc.w * k), h = Math.floor(sc.h * k);
-  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px'; requestAnimationFrame(placeRes);
   canvas.width = Math.round(w * devicePixelRatio); canvas.height = Math.round(h * devicePixelRatio);
   dirty = true;
 }
 new ResizeObserver(sizePreview).observe($('#stage'));
 function draw() {
   if (!seq.length) return;
+  if (qPrev && !view) {  // quality preview: exactly what that export looks like
+    pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.clearRect(0, 0, canvas.width, canvas.height);
+    pctx.imageSmoothingEnabled = qPrev.bmp.width < canvas.width; pctx.drawImage(qPrev.bmp, 0, 0, canvas.width, canvas.height);
+    const t = `Preview · ${qPrev.name} · ${fmtMB(qPrev.size)}`, d = devicePixelRatio;
+    pctx.font = `600 ${12 * d}px -apple-system, system-ui, sans-serif`; const w = pctx.measureText(t).width + 20 * d;
+    pctx.fillStyle = 'rgba(0,0,0,.6)'; pctx.beginPath(); pctx.roundRect(10 * d, 10 * d, w, 26 * d, 13 * d); pctx.fill();
+    pctx.fillStyle = '#fff'; pctx.textBaseline = 'middle'; pctx.fillText(t, 20 * d, 23 * d);
+    return;
+  }
   drawScene(pctx, canvas.width, canvas.height, seq[pos], true, { i: pos, n: seq.length, vr: view });
   highlight();
 }
@@ -1710,18 +1764,99 @@ function openOverlaySettings(focusText) {
   $('#inspPanel').classList.remove('folded'); $('#ovBox').open = true; $('#ovBox').scrollIntoView({ block: 'nearest' });
   if (focusText) setTimeout(() => { $('#txt').focus(); $('#txt').select(); }, 50);
 }
-// export settings: right-click the Export button
+// GIF size settings: click the resolution under the preview
 const expMenu = $('#expMenu');
 function closeExp() { expMenu.classList.add('hidden'); }
+// right-click Export: quality, each with its estimated size (filled in by the background estimate)
+let qOpts = null, autoStep = 0;
+const qualMenu = $('#qualMenu');
+const qChecked = () => { const st = S.qStep ?? autoStep; return qOpts?.opts.findLast(o => o.step <= st) || qOpts?.opts[0]; };
+function renderQual() {
+  if (qualMenu.classList.contains('hidden')) return;
+  qualMenu.innerHTML = '<div class="sub">Quality</div>';
+  if (!qOpts) { qualMenu.insertAdjacentHTML('beforeend', `<div class="qwait">${seq.length ? 'Working out the sizes…' : 'Add frames first'}</div>`); return; }
+  const ck = qChecked();
+  for (const o of qOpts.opts) {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="ck">${o === ck ? '✓' : ''}</span><span class="qn"></span><span class="qs"></span><span class="qd"></span>`;
+    b.querySelector('.qn').textContent = o.name; b.querySelector('.qd').textContent = o.note + (o.step === qOpts.auto && S.qStep == null ? ' · automatic' : '');
+    b.querySelector('.qs').textContent = fmtMB(o.size);
+    b.onpointerenter = () => qualityPreview(o);
+    b.onclick = () => { S.qStep = o.step === qOpts.auto ? null : o.step; $('#estSize').textContent = '≈ ' + fmtMB(o.size); updateInfo(); closeQual(); };
+    qualMenu.append(b);
+  }
+  qualMenu.insertAdjacentHTML('beforeend', `<div class="qwait">Point at one to preview it${qOpts.opts.length < QCANDS.length ? ' · only options that really make the file smaller are shown' : ''}</div>`);
+}
+// preview of a quality: the frame shown now, encoded with that recipe and decoded again, drawn over the preview
+let qPrev = null, qPrevTok = 0, qPrevWas = false, qPrevTimer = 0;
+function qualityPreview(o) {
+  clearTimeout(qPrevTimer);
+  qPrevTimer = setTimeout(async () => {
+    const tok = ++qPrevTok, f = seq[pos]; if (!f) return;
+    if (!exporting) { exporting = true; estRun++; await estPromise; }
+    const enc = startEncoder(); palettes.clear(); sampleCache = null;
+    try {
+      const st = concrete(LADDER[o.step]); st.list = [{ f, delay: 100 }];
+      const r = await encodeAll(enc, st, () => {}, HARD_BYTES);
+      if (tok !== qPrevTok || !r.blob) return;
+      qPrev = { bmp: await createImageBitmap(r.blob), name: o.name, size: o.size }; dirty = true;
+    } catch (err) { console.warn('preview', err); }
+    finally { enc.stop(); palettes.clear(); sampleCache = null; }
+  }, 120);
+}
+function closeQual() {
+  if (qualMenu.classList.contains('hidden')) return;
+  qualMenu.classList.add('hidden'); clearTimeout(qPrevTimer); qPrevTok++;
+  qPrev = null; exporting = false; dirty = true;
+  if (qPrevWas) setPlaying(true);
+}
 $('#bExport').addEventListener('contextmenu', e => {
-  e.preventDefault(); closeAdd(); closeCtx();
+  e.preventDefault(); closeAdd(); closeCtx(); closeExp();
+  if (!qualMenu.classList.contains('hidden')) return;
+  qPrevWas = S.playing; if (S.playing) setPlaying(false);  // the preview shows one frame
+  qualMenu.classList.remove('hidden'); renderQual();
   const r = $('#bExport').getBoundingClientRect();
-  expMenu.classList.remove('hidden');
-  expMenu.style.left = Math.max(8, Math.min(r.right - expMenu.offsetWidth, innerWidth - expMenu.offsetWidth - 8)) + 'px';
-  expMenu.style.top = r.bottom + 8 + 'px';
+  qualMenu.style.left = Math.max(8, Math.min(r.right - qualMenu.offsetWidth, innerWidth - qualMenu.offsetWidth - 8)) + 'px';
+  qualMenu.style.top = r.bottom + 8 + 'px';
 });
-$('#expGo').onclick = () => { closeExp(); $('#bExport').click(); };
-addEventListener('pointerdown', e => { if (!e.target.closest('#expMenu')) closeExp(); }, true);
+addEventListener('pointerdown', e => { if (!e.target.closest('#qualMenu')) closeQual(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') closeQual(); });
+// click the resolution under the preview: choose the GIF's width
+$('#resLabel').addEventListener('click', () => {
+  if (!expMenu.classList.contains('hidden')) return closeExp();
+  closeAdd(); closeCtx(); outUI();
+  const r = $('#resLabel').getBoundingClientRect();
+  expMenu.classList.remove('hidden'); expMenu.style.transformOrigin = 'bottom right';
+  expMenu.style.left = Math.max(8, Math.min(r.right - expMenu.offsetWidth, innerWidth - expMenu.offsetWidth - 8)) + 'px';
+  const below = r.bottom + 8 + expMenu.offsetHeight < innerHeight - 8;
+  expMenu.style.top = (below ? r.bottom + 8 : r.top - 8 - expMenu.offsetHeight) + 'px';
+});
+const sizeChanged = () => { outUI(); updateInfo(); textUI(); sizePreview(); };
+$('#outCustom').addEventListener('change', () => {
+  const v = Math.round(+$('#outCustom').value);
+  S.outW = v >= 16 ? Math.min(4000, v) : 0; sizeChanged();
+});
+$('#outH').addEventListener('change', () => {  // linked: the width follows; unlinked: stretches
+  const v = Math.min(4000, Math.round(+$('#outH').value)); if (!(v >= 16)) return outUI();
+  const sc = scene();
+  if (S.link) S.outW = Math.round(v * sc.w / sc.h);
+  else { if (!S.outW) S.outW = outSize().w; S.outH = v; }
+  sizeChanged();
+});
+for (const id of ['#outCustom', '#outH']) $(id).addEventListener('input', () => { if (+$(id).value >= 16) $(id).dispatchEvent(new Event('change')); });
+$('#outRatio').addEventListener('change', () => {  // "16:9", "16/9", "16x9" or "1.78": keeps the width, sets the height
+  const m = $('#outRatio').value.trim().replace(',', '.').match(/^(\d*\.?\d+)\s*(?:[:\/x×]\s*(\d*\.?\d+))?$/i);
+  const r = m ? +m[1] / (m[2] ? +m[2] : 1) : 0; if (!(r > 0.05 && r < 20)) return outUI();
+  const sc = scene(), w = outSize().w, h = Math.max(1, Math.round(w / r));
+  if (Math.abs(h - Math.round(w * sc.h / sc.w)) <= 1) { S.link = true; S.outH = 0; }  // the picture's own ratio: linked again
+  else { S.link = false; S.outW = w; S.outH = Math.min(4000, h); }
+  sizeChanged();
+});
+$('#bLink').onclick = () => {  // like Photoshop: linked keeps the aspect ratio; linking again fits the height to the width
+  S.link = !S.link; if (S.link) S.outH = 0; else { S.outW = outSize().w; S.outH = outSize().h; }
+  sizeChanged();
+};
+addEventListener('pointerdown', e => { if (!e.target.closest('#expMenu, #resLabel')) closeExp(); }, true);
 addEventListener('keydown', e => { if (e.key === 'Escape') closeExp(); });
 let addAt = null;  // where a right-click on the preview opened the add menu (fractions of the GIF); new layers go there
 $('#addText').onclick = () => {
@@ -1904,6 +2039,7 @@ function changed() {
   renderStrip(); sizePreview(); updateInfo(); syncScale(); renderLayers();
 }
 function updateInfo() {
+  placeRes();
   const n = S.frames.length;
   if (!n) { $('#info').textContent = 'None yet'; $('#exportInfo').textContent = exportText(); return; }
   const ms = seq.reduce((a, f) => a + Math.round(f.delay / 10) * 10, 0);
@@ -1918,7 +2054,7 @@ function updateInfo() {
 }
 function exportText() {
   const o = outSize();
-  return `${S.frames.length ? o.w + '×' + o.h + ' px · ' : ''}at most ${fmtMB(MAX_BYTES)} · best quality that fits · loops forever`;
+  return `${S.frames.length ? o.w + '×' + o.h + ' px · ' : ''}${S.qStep == null ? 'best quality under ' + fmtMB(AUTO_BYTES) : 'quality chosen'} · right-click Export for quality · loops forever`;
 }
 let sayTimer;
 function say(msg, isErr) {
@@ -2042,8 +2178,14 @@ for (const [id, k, dim] of [['#txtX', 'x', 'w'], ['#txtY', 'y', 'h'], ['#txtSize
   $(id).oninput = () => { const v = +$(id).value; if ($(id).value !== '' && (k !== 'size' || v >= 1)) { S.text[k] = v / outSize()[dim]; dirty = true; } };
 textUI();
 // export width
-const outUI = () => { for (const b of $('#outSeg').children) b.classList.toggle('on', +b.dataset.w === S.outW); };
-for (const b of $('#outSeg').children) b.onclick = () => { S.outW = +b.dataset.w; outUI(); updateInfo(); textUI(); };
+const outUI = () => {
+  placeRes(); const o = outSize();
+  if (document.activeElement !== $('#outCustom')) $('#outCustom').value = o.w;
+  if (document.activeElement !== $('#outH')) $('#outH').value = o.h;
+  if (document.activeElement !== $('#outRatio')) $('#outRatio').value = ratioText(o.w, o.h);
+  $('#bLink').classList.toggle('on', S.link); $('#bLink').querySelector('use').setAttribute('href', S.link ? '#i-link' : '#i-unlink');
+  $('#bLink').title = S.link ? 'Aspect ratio kept · click to set width and height freely' : 'Width and height are free (stretches) · click to keep the aspect ratio';
+ };
 outUI();
 $('#bClear').onclick = () => { if (S.frames.length && confirm(`Remove all ${S.frames.length} frames?`)) { for (const f of S.frames) f.bmp.close?.(); S.frames = []; changed(); } };
 $('#bPlay').onclick = () => setPlaying(!S.playing);
@@ -2229,7 +2371,7 @@ addEventListener('paste', e => {
 
 // ---- export ----
 // Our own encoder (see #encoderSrc) in a worker. Before encoding, a few sample frames are test-encoded
-// to estimate the file size, and the best-quality step of LADDER that fits MAX_BYTES is used.
+// to estimate the file size, and the best-quality step of LADDER (from the chosen quality on) that fits its size budget is used.
 // The layout always stays at full resolution; only the moving picture gives way.
 const LADDER = [
   { colors: 255, tol: 0,  pic: 1,    out: 1 },
@@ -2268,9 +2410,9 @@ function concrete(step) {
   const o = outSize();
   s.W = Math.max(1, Math.round(o.w * s.out)); s.H = Math.max(1, Math.round(o.h * s.out));
   // the area that can change: the GIF's frame, in output px; outside it only the static layout
-  const F = frameRect(), k = s.W / scene().w;
-  const x0 = Math.max(0, Math.floor(F.x * k)), y0 = Math.max(0, Math.floor(F.y * k));
-  const x1 = Math.min(s.W, Math.ceil((F.x + F.w) * k)), y1 = Math.min(s.H, Math.ceil((F.y + F.h) * k));
+  const F = frameRect(), k = s.W / scene().w, ky = s.H / scene().h;
+  const x0 = Math.max(0, Math.floor(F.x * k)), y0 = Math.max(0, Math.floor(F.y * ky));
+  const x1 = Math.min(s.W, Math.ceil((F.x + F.w) * k)), y1 = Math.min(s.H, Math.ceil((F.y + F.h) * ky));
   s.region = layoutOn() && !S.clear && !S.items.some(t => t.frame && !t.hidden) ? { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) } : { x: 0, y: 0, w: s.W, h: s.H };
   return s;
 }
@@ -2337,7 +2479,7 @@ async function estimate(enc, step) {
 const fmtMB = b => b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB';
 const describe = s => [`${s.colors} colors`, s.tol ? `tolerance ${s.tol}` : '', s.pic < 1 ? `picture at ${s.pic * 100}%` : '',
   s.out < 1 ? `scaled to ${s.out * 100}%` : '', s.skip > 1 ? `every ${s.skip === 2 ? '2nd' : s.skip + 'rd'} frame` : ''].filter(Boolean).join(', ');
-async function encodeAll(enc, s, onProgress) {
+async function encodeAll(enc, s, onProgress, budget = HARD_BYTES) {
   const palette = await paletteFor(enc, s.colors);
   await enc.call(encSettings(s, palette, true));
   const pending = [];
@@ -2349,7 +2491,7 @@ async function encodeAll(enc, s, onProgress) {
     pending.push(enc.call({ type: 'frame', rgba: d, delay: L[i].delay, full, ...r }, [d.buffer]).then(m => { size = m.size; }));
     if (pending.length >= 2) await pending.shift();  // keep the worker busy, but memory flat
     onProgress(i + 1, size);
-    if (size > MAX_BYTES) { await Promise.all(pending); return { over: true, at: i + 1, size }; }  // caller steps down
+    if (size > budget) { await Promise.all(pending); return { over: true, at: i + 1, size }; }  // caller steps down
   }
   await Promise.all(pending);
   const done = await enc.call({ type: 'end' });
@@ -2359,15 +2501,28 @@ async function encodeAll(enc, s, onProgress) {
 let estKey = '', estAt = 0, estRun = 0, estDone = '', estPromise = null, exporting = false;
 const sceneKey = () => [S.frames.map(f => f.id).join(','), seq.length, S.useLayout, S.layout?.name, S.layout?.w,
   JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg, S.bgImg?.url, S.alpha,
-  S.fade, S.outW, JSON.stringify(S.fx), JSON.stringify(S.items.map(t => ({ ...t, bmp: undefined })))].join('|');
+  S.fade, S.outW, S.outH, S.link, JSON.stringify(S.fx), JSON.stringify(S.items.map(t => ({ ...t, bmp: undefined })))].join('|');
 async function runEstimate(key) {
   const id = ++estRun, enc = startEncoder();
   palettes.clear(); sampleCache = null;
   try {
     const ok = () => id === estRun;
-    let i = 0, size = await estimate(enc, LADDER[0]);
-    while (ok() && size > MAX_BYTES * 0.93 && i < LADDER.length - 1) size = await estimate(enc, LADDER[++i]);  // what export would pick
-    if (ok()) { $('#estSize').textContent = '≈ ' + fmtMB(Math.min(size, MAX_BYTES)); estDone = key; }
+    // the size of each recipe (they share ladder steps), then the options that differ, and the automatic choice
+    const steps = new Map(), est = async i => { if (!steps.has(i)) steps.set(i, await estimate(enc, LADDER[i])); return steps.get(i); };
+    qOpts = null; renderQual();
+    const show = async i => { if (ok()) $('#estSize').textContent = '≈ ' + fmtMB(await est(i)); };
+    if (S.qStep != null) await show(S.qStep);
+    for (const c of QCANDS) { await est(c.step); if (!ok()) return; }
+    let auto = QCANDS.find(c => steps.get(c.step) <= AUTO_BYTES * 0.93)?.step;
+    if (auto == null) { auto = QCANDS.at(-1).step; while (ok() && (await est(auto)) > AUTO_BYTES * 0.93 && auto < LADDER.length - 1) auto++; }
+    if (!ok()) return;
+    const opts = [];
+    for (const c of QCANDS) { const size = steps.get(c.step); if (!opts.length || size < opts.at(-1).size * 0.85) opts.push({ ...c, size }); else opts.at(-1).also = c.step; }
+    opts.forEach((o, i) => o.name = QNAMES[opts.length][i]);
+    qOpts = { opts, auto }; autoStep = auto;
+    if (S.qStep == null) await show(auto);
+    renderQual();
+    estDone = key;
   } catch (err) { console.warn('estimate', err); }
   finally { enc.stop(); palettes.clear(); sampleCache = null; }
 }
@@ -2380,6 +2535,7 @@ setInterval(() => {
 }, 300);
 
 function progress(p) { $('#prog').classList.toggle('hidden', p === null); $('#status').classList.toggle('busy', p !== null); $('#prog div').style.width = ((p || 0) * 100) + '%'; }
+$('#bExport').title = 'Export the GIF · right-click for quality';
 $('#bExport').onclick = async () => {
   if (!seq.length) return;
   const btn = $('#bExport'); btn.disabled = true;
@@ -2399,19 +2555,20 @@ $('#bExport').onclick = async () => {
     };
     const pick = async from => {  // best step from `from` on that should fit (binary search over the ladder)
       let lo = from, hi = LADDER.length - 1, best = LADDER.length - 1;
-      while (lo <= hi) { const mid = (lo + hi) >> 1; if (await est(mid) <= MAX_BYTES * 0.93) { best = mid; hi = mid - 1; } else lo = mid + 1; }
+      while (lo <= hi) { const mid = (lo + hi) >> 1; if (await est(mid) <= budget * 0.93) { best = mid; hi = mid - 1; } else lo = mid + 1; }
       return best;
     };
     say('Estimating size…'); progress(0.02); await nextPaint();
-    let step = await pick(0), blob = null, s;
+    const budget = S.qStep == null ? AUTO_BYTES : HARD_BYTES;
+    let step = S.qStep ?? await pick(0), blob = null, s;
     for (;;) {
       sampleCache = null;
       s = concrete(LADDER[step]);
       const r = await encodeAll(enc, s, (i, size) => {
         say(`Encoding ${i} / ${s.list.length} · ${fmtMB(size)} · ${describe(s)}`); progress(0.1 + 0.9 * i / s.list.length);
-      });
+      }, budget);
       if (r.blob) { blob = r.blob; break; }
-      if (step === LADDER.length - 1) throw new Error(`Even the smallest settings go over ${fmtMB(MAX_BYTES)}. Shorten the GIF, lower the fps, or make the opening smaller.`);
+      if (step === LADDER.length - 1) throw new Error(`Even the smallest settings go over ${fmtMB(budget)}. Shorten the GIF, lower the fps, or make the opening smaller.`);
       corr = (r.size / r.at * s.list.length) / ests.get(step);  // how far off the estimate was
       say(`Too big (would be ≈ ${fmtMB(r.size / r.at * s.list.length)}), trying smaller settings…`); await nextPaint();
       step = await pick(step + 1);
