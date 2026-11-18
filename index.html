@@ -12,7 +12,7 @@
     --bg: #0e0f13; --fg: #f5f5f7; --muted: rgba(235,235,245,.6); --line: rgba(255,255,255,.1);
     --tint: rgba(38,38,44,.42); --fill: rgba(255,255,255,.08); --fill-hi: rgba(255,255,255,.16);
     --rim: rgba(255,255,255,.55); --rim-lo: rgba(255,255,255,.12);
-    --accent: #ff6a3d; --accent-2: #ff3d71; --accent-soft: rgba(255,106,61,.2);
+    --accent: #ff6a3d; --accent-soft: rgba(255,106,61,.2);
     --shadow: 0 10px 40px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25);
     --blob1: rgba(255,106,61,.28); --blob2: rgba(80,120,255,.24); --blob3: rgba(180,90,255,.18);
   }
@@ -20,7 +20,7 @@
     --bg: #eef0f4; --fg: #1d1d1f; --muted: rgba(60,60,67,.62); --line: rgba(0,0,0,.08);
     --tint: rgba(255,255,255,.42); --fill: rgba(0,0,0,.05); --fill-hi: rgba(0,0,0,.09);
     --rim: rgba(255,255,255,.95); --rim-lo: rgba(255,255,255,.4);
-    --accent: #f05a2e; --accent-2: #ec3a6a; --accent-soft: rgba(240,90,46,.14);
+    --accent: #f05a2e; --accent-soft: rgba(240,90,46,.14);
     --shadow: 0 10px 36px rgba(30,40,80,.14), 0 2px 6px rgba(30,40,80,.08);
     --blob1: rgba(255,140,90,.35); --blob2: rgba(100,150,255,.32); --blob3: rgba(200,130,255,.25);
   }
@@ -91,7 +91,7 @@
   .switch .track { width: 38px; height: 22px; border-radius: 11px; background: var(--fill-hi); position: relative; transition: background .25s; flex: none; }
   .switch .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
     background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.3); transition: transform .3s cubic-bezier(.3,1.5,.6,1); }
-  .switch input:checked + .track { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .switch input:checked + .track { background: var(--accent); }
   .switch input:checked + .track::after { transform: translateX(16px); }
   .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -106,7 +106,7 @@
   #status { top: 70px; left: 50%; transform: translateX(-50%); max-width: min(480px, calc(100vw - 28px)); padding: 8px 16px; border-radius: 18px; z-index: 3; display: flex; flex-direction: column; gap: 6px; }
   #status:not(.busy):has(#result:empty) { display: none; }
   #prog { height: 4px; background: var(--fill-hi); border-radius: 2px; overflow: hidden; min-width: 220px; }
-  #prog div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .15s; }
+  #prog div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
   #result { font-variant-numeric: tabular-nums; word-break: break-word; text-align: center; }
   #result.err { color: var(--accent); }
 
@@ -114,10 +114,21 @@
   #menu { top: 70px; right: 14px; width: min(310px, calc(100vw - 28px)); padding: 0; z-index: 4; transform-origin: top right; animation: pop .22s cubic-bezier(.3,1.3,.6,1); }
   @keyframes pop { from { opacity: 0; transform: scale(.94); } }
   #menu.folded { display: none; }
-  #menu .scroll { max-height: calc(100vh - 90px); overflow: auto; padding: 6px 16px 12px; }
-  #menu section { padding: 12px 0; }
-  #menu section + section { border-top: 1px solid var(--line); }
-  #menu h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  #menu { overflow: hidden; }  /* content stays inside the rounded corners */
+  #menu .scroll { max-height: calc(100vh - 90px); overflow: auto; padding: 6px 8px 12px; }
+  #menu details { border-radius: 14px; }
+  #menu details + details { margin-top: 2px; }
+  #menu summary { list-style: none; display: flex; align-items: center; padding: 10px 10px; border-radius: 12px; cursor: pointer; user-select: none;
+    font-size: 13px; font-weight: 600; }
+  #menu summary::-webkit-details-marker { display: none; }
+  #menu summary:hover { background: var(--fill); }
+  #menu summary::after { content: ''; margin-left: auto; width: 7px; height: 7px; border: solid var(--muted); border-width: 0 1.6px 1.6px 0;
+    transform: rotate(-45deg); transition: transform .2s; }
+  #menu details[open] > summary::after { transform: rotate(45deg); }
+  #menu details[open] { background: var(--fill); }
+  #menu details[open] > summary:hover { background: transparent; }
+  #menu .body { padding: 2px 10px 14px; }
+  #foot { margin: 10px 8px 0; }
   #menu .body { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; align-items: center; }
   #menu .body > label, #menu .body > .lbl { color: var(--muted); }
   #menu .body .wide { grid-column: 1 / -1; }
@@ -157,13 +168,13 @@
   #empty strong { font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
   #empty .row { justify-content: center; gap: 8px; margin: 14px 0 6px; }
   .demo-only { display: none; }
-  #empty.demo { position: absolute !important; bottom: 0; left: 50%; transform: translateX(-50%); padding: 6px 6px 6px 18px;
+  #empty.demo { position: absolute !important; bottom: 0; left: 50%; transform: translateX(-50%); padding: 6px 6px 6px 18px; max-width: calc(100% - 8px);
     border-radius: 999px; display: flex; align-items: center; gap: 12px; white-space: nowrap; z-index: 1; }
   #empty.demo > :not(.row):not(.demo-only) { display: none; }
-  #empty.demo .demo-only { display: inline; color: var(--muted); }
+  #empty.demo .demo-only { display: inline; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   #empty.demo .row { margin: 0; flex-wrap: nowrap; }
   #empty.demo button { padding: 6px 12px; }
-  @media (max-width: 560px) { #empty.demo .demo-only { display: none; } #empty.demo { padding-left: 6px; } }
+  @media (max-width: 640px) { #empty.demo .demo-only { display: none; } #empty.demo { padding-left: 6px; } }
   #drop { position: fixed; inset: 10px; border-radius: 28px; display: none; place-items: center; pointer-events: none; z-index: 5;
     background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   #drop span { font-size: 18px; font-weight: 600; color: var(--accent); }
@@ -181,7 +192,7 @@
   .timing input[type=number] { width: 4.6em; padding: 3px 7px; }
   .timing #fps { width: 4em; }
   .timing .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
-  .phead .count { color: var(--muted); font-size: 12px; flex: 1; font-variant-numeric: tabular-nums; }
+  .phead .count { color: var(--muted); font-size: 12px; flex: 1; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .chev { color: var(--muted); transition: transform .25s; width: 14px; height: 14px; }
   .folded .chev { transform: rotate(-90deg); }
   #tc { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; font-size: 12px; }
@@ -191,6 +202,19 @@
   #overview canvas { display: block; width: 100%; height: 100%; }
   #playhead { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #fff; border-radius: 2px; pointer-events: none;
     box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 0 8px rgba(0,0,0,.5); }
+  #curve { position: relative; height: 34px; margin: -4px 0 8px; cursor: crosshair; touch-action: none; user-select: none; }
+  #curve canvas { display: block; width: 100%; height: 100%; }
+  #bCurveReset { position: absolute; top: 0; right: 0; width: 22px; height: 22px; padding: 0; font-size: 13px; color: var(--muted);
+    background: var(--fill); opacity: 0; transition: opacity .2s; }
+  #curve:hover #bCurveReset, #bCurveReset:focus-visible { opacity: 1; }
+  #curve.even #bCurveReset { display: none; }
+  @media (pointer: coarse) { #bCurveReset { opacity: 1; } }
+  #menu input[type=text] { font: inherit; color: var(--fg); background: var(--fill); border: 1px solid transparent; border-radius: 9px; padding: 6px 10px; }
+  #menu input[type=text]:focus { outline: none; border-color: var(--accent); }
+  #menu select { font: inherit; color: var(--fg); background: var(--fill); border: 1px solid transparent; border-radius: 9px; padding: 5px 8px; min-width: 0; flex: 1; }
+  #menu select:focus { outline: none; border-color: var(--accent); }
+  #menu select option { color: #000; }
+  #txtX, #txtY { width: 4.6em; }
   #tiles { display: flex; gap: 6px; overflow-x: auto; padding: 2px 6px 4px; min-height: 104px; scrollbar-width: thin; }
   #tiles:empty::before { content: 'Your frames will appear here'; color: var(--muted); align-self: center; margin: 0 auto; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 5px; align-items: center; padding: 5px; border-radius: 14px; position: relative; transition: background .2s; }
@@ -271,7 +295,7 @@
       <button id="pickDir" class="soft"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
     </div>
     <span class="note desk-only">or paste with ⌘V</span>
-    <span class="demo-only">Example · transparent, try a background in ⋯ · add your frames to replace it</span>
+    <span class="demo-only">Example · add your frames to replace it</span>
   </div>
 </main>
 
@@ -292,40 +316,75 @@
 </div>
 
 <div id="menu" class="ui folded"><div class="scroll">
-  <section id="timing"><h2>Frames</h2><div class="body">
+  <details id="timing"><summary>Frames</summary><div class="body">
     <span class="lbl">Order</span>
     <span class="row span"><button id="bReverse" class="soft">Reverse</button><button id="bClear" class="soft">Remove all</button></span>
-  </div></section>
+    <span class="lbl">Count</span>
+    <span class="row span"><button id="bHalve" class="soft" title="Remove frames 2, 4, 6 …: half the frames, the motion runs twice as fast">Remove every 2nd</button><button id="bDouble" class="soft" title="Show every frame twice in a row: double the frames, the motion runs half as fast">Double each</button></span>
+    <span class="lbl" title="Spreads the same loop length differently over the frames">Ease</span>
+    <div class="seg" id="easeSeg"><button data-ease="even" title="Same duration for every frame, same loop length">Even</button><button data-ease="in" title="Starts slow: early frames last longer">In</button><button data-ease="out" title="Ends slow: late frames last longer">Out</button><button data-ease="both" title="Slow at start and end">Both</button></div>
+    <label for="fade" title="The first and last frames fade from and to the background">Fade</label><input id="fade" type="range" min="0" max="6" step="1" value="0"><output id="fadeOut">off</output>
+    <label class="switch wide" title="Preview only: the previous and next frame show faintly, to check the spacing"><input type="checkbox" id="onion"><span class="track"></span>Onion skin</label>
+    <div class="wide note">Shift-click frames to use these on a range only.</div>
+  </div></details>
 
-  <section id="layoutBox"><h2>Layout</h2><div class="body">
+  <details id="layoutBox"><summary>Layout</summary><div class="body">
     <label class="switch wide"><input type="checkbox" id="useLayout2"><span class="track"></span><span id="layoutName" class="muted">no layout</span></label>
     <div id="layoutBody" class="off">
-      <span class="lbl keep">File</span>
+      <span class="lbl keep">Template</span>
+      <div class="seg keep" id="tplSeg"><button data-tpl="a4" title="A4 portrait, today's date bottom right">A4 + date</button><button data-tpl="square" title="Square, today's date bottom right">Square + date</button></div>
+      <span class="lbl keep">Own</span>
       <span class="span keep"><button id="bLayout" class="soft">Choose PNG / PDF…</button></span>
       <label for="scale" id="scaleLbl">Size</label><input id="scale" type="range" min="-4" max="4" step=".01" value="0"><output id="scaleOut"></output>
       <span class="lbl">Fit</span>
       <div class="seg"><button id="bFill" title="The picture covers the transparent opening">Fill</button><button id="bFit" title="The picture fits inside the opening">Fit</button><button id="bCenter">Center</button></div>
-      <div class="wide note">A PNG or PDF with a transparent opening. Drag the preview to move, scroll to resize.</div>
+      <div class="wide note">Drag the preview to move, scroll to resize.</div>
     </div>
-  </div></section>
+  </div></details>
 
-  <section><h2>Picture</h2><div class="body">
+  <details><summary>Picture</summary><div class="body">
     <span class="lbl">Crop</span>
     <span class="row span"><button id="bCrop" class="soft" title="Or double-click the preview · Esc to finish">Crop</button><button id="bCropReset" class="soft" title="Fill the frame again, centered">Reset</button></span>
     <span class="lbl">Background</span>
     <span class="row span" style="gap:10px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"><button id="bBgImg" class="soft" title="An image behind the frames, filling the whole GIF">Image…</button></span>
     <span id="bgImgRow" class="row wide hidden"><span class="lbl" style="width:66px"></span><span id="bgImgName" class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="bBgImgDel" class="soft" title="Remove the background image">Remove</button></span>
     <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
-  </div></section>
+    <span class="lbl">Key color</span>
+    <span class="row span" style="gap:10px"><label class="switch" title="Makes this color see-through in every frame, e.g. a white background"><input type="checkbox" id="keyOn"><span class="track"></span>See-through</label><input id="keyColor" type="color" value="#ffffff" title="The color to remove"></span>
+    <label for="keyTol">Tolerance</label><input id="keyTol" type="range" min="0" max="100" step="1" value="20"><output id="keyTolOut">20</output>
+    <span class="lbl">Filter</span>
+    <label class="switch span"><input type="checkbox" id="bw"><span class="track"></span>Black &amp; white</label>
+    <label for="contrast">Contrast</label><input id="contrast" type="range" min="-100" max="100" step="1" value="0"><output id="contrastOut">0</output>
+    <label for="poster" title="Fewer tones per color: a graphic look and much smaller files">Posterize</label><input id="poster" type="range" min="1" max="8" step="1" value="1"><output id="posterOut">off</output>
+  </div></details>
 
-  <section><h2>Appearance</h2><div class="body">
+  <details><summary>Text</summary><div class="body">
+    <input id="txt" class="wide" type="text" placeholder="Caption on the GIF" autocomplete="off">
+    <label for="txtFont">Font</label>
+    <span class="row span" style="gap:10px"><select id="txtFont"></select><label class="switch"><input type="checkbox" id="txtBold" checked><span class="track"></span>Bold</label></span>
+    <span class="lbl"></span><span class="span"><button id="bFont" class="soft" title="Load a font file (.otf .ttf .woff .woff2) from your computer. Stays in this browser tab, nothing is uploaded">Own font…</button></span>
+    <span class="lbl" title="In pixels of the exported GIF, from its top left corner. Or drag the text in the preview">Position</span>
+    <span class="row span"><span class="muted">X</span><input id="txtX" type="number" step="1"><span class="muted">Y</span><input id="txtY" type="number" step="1"><span class="muted">px</span></span>
+    <label for="txtSize">Size</label>
+    <span class="row span"><input id="txtSize" type="number" min="4" step="1"><span class="muted">px</span><input id="txtColor" type="color" value="#000000" title="Text color" style="margin-left:auto"></span>
+    <div class="wide note">Drag the text in the preview to move it.</div>
+  </div></details>
+
+  <details><summary>Export</summary><div class="body">
+    <span class="lbl">Width</span>
+    <div class="seg" id="outSeg"><button data-w="0" title="As large as fits the size budget">Auto</button><button data-w="1200">1200</button><button data-w="800">800</button><button data-w="480">480</button></div>
+  </div></details>
+
+  <details><summary>Appearance</summary><div class="body">
     <span class="lbl">Theme</span>
     <div class="seg" id="themeSeg"><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div>
-  </div></section>
+    <label for="accentPick">Accent</label>
+    <span class="row span" style="gap:10px"><input id="accentPick" type="color" title="Color of switches, outlines and highlights"><button id="bAccentReset" class="soft">Default</button></span>
+  </div></details>
 
   <div id="foot">
     <span id="exportInfo"></span>
-    <span>GIF Generator <span id="versionText">v0.8</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></span>
+    <span>GIF Generator <span id="versionText">v0.9</span> · <a href="https://github.com/ibagaturiya/gif-generator" target="_blank" rel="noopener">source (AGPL-3.0)</a></span>
   </div>
 </div></div>
 
@@ -338,7 +397,8 @@
     </span>
     <span id="tc"></span></div>
   <div id="overview" class="hidden" title="Click or drag to scrub"><canvas></canvas><div id="playhead"></div></div>
-  <div id="tiles" title="Drag to reorder · click to show · Del removes"></div>
+  <div id="curve" class="hidden" title="Duration of each frame: drag to draw it, higher = longer"><canvas></canvas><button id="bCurveReset" title="Reset: every frame the same duration, same loop length">↺</button></div>
+  <div id="tiles" title="Drag to reorder · click to show · shift-click: range · Del removes"></div>
 </section>
 
 <div id="dialog" class="hidden"><div class="ui form">
@@ -349,13 +409,14 @@
   <label for="vTo">To</label><span class="row wide"><input id="vTo" type="number" min="0" step=".1"> s</span>
   <span class="all" id="vCount"></span>
   <span class="all" id="vErr"></span>
-  <div id="vProg" class="all hidden" style="height:4px;background:var(--fill-hi);border-radius:2px;overflow:hidden"><div style="height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2))"></div></div>
+  <div id="vProg" class="all hidden" style="height:4px;background:var(--fill-hi);border-radius:2px;overflow:hidden"><div style="height:100%;width:0;background:var(--accent)"></div></div>
   <span class="all row" style="justify-content:flex-end;gap:8px"><button id="vCancel" class="soft">Cancel</button><button id="vGo" class="primary">Extract frames</button></span>
 </div></div>
 
 <input id="file" type="file" multiple accept="image/*,video/*,.zip,application/zip" hidden>
 <input id="dir" type="file" webkitdirectory hidden>
 <input id="bgFile" type="file" accept="image/*" hidden>
+<input id="fontFile" type="file" accept=".otf,.ttf,.woff,.woff2,font/*" multiple hidden>
 <input id="layoutFile" type="file" accept="image/png,image/webp,image/*,application/pdf,.pdf" hidden>
 
 <script id="encoderSrc" type="javascript/worker">
@@ -572,6 +633,10 @@ const S = {
   fr: { x: 0, y: 0, w: 1, h: 1 },  // GIF frame inside the layout, layout px; the GIF is clipped to it
   ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
   crop: false,                     // crop mode: gestures move the picture, not the frame
+  picked: new Set(), anchor: null,  // shift-click range in the filmstrip
+  onion: false, fade: 0, outW: 0,  // outW: export width, 0 = auto
+  fx: { key: false, keyColor: '#ffffff', keyTol: 20, bw: false, contrast: 0, poster: 1 },
+  text: { str: '', x: 0.05, y: 0.84, size: 0.06, font: 'System', bold: true, color: '#000000' },  // x, y (top left) and size as fractions of the GIF
   bg: '#ffffff', clear: true, bgImg: null, alpha: 1,  // bgImg: { bmp, name, url }; alpha: opacity of the frames delay: DEFAULT_DELAY,  // clear: transparent background
 };
 let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true, dragView = false;
@@ -579,15 +644,30 @@ let uid = 0, seq = [], pos = 0, acc = 0, last = performance.now(), dirty = true,
 // ---- version, theme ----
 (() => { const d = new Date(document.lastModified); if (isNaN(d)) return;
   const p = n => String(n).padStart(2, '0');
-  $('#versionText').textContent = `v0.8 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
+  $('#versionText').textContent = `v0.9 · ${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; })();
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   for (const b of $('#themeSeg').children) b.classList.toggle('on', b.dataset.theme === t);
   store.set('gifgen.theme', t);
+  if (!store.get('gifgen.accent') && $('#accentPick')) $('#accentPick').value = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
 }
 applyTheme(store.get('gifgen.theme') || 'dark');
+// accent color: switches, frame outlines, highlights; your own color is kept in this browser
+function applyAccent(hex) {
+  const root = document.documentElement.style;
+  if (hex) {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    root.setProperty('--accent', hex); root.setProperty('--accent-soft', `rgba(${r},${g},${b},.2)`);
+  } else { root.removeProperty('--accent'); root.removeProperty('--accent-soft'); }
+  $('#accentPick').value = (hex || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()).slice(0, 7);
+  store.set('gifgen.accent', hex || '');
+  dirty = true;  // the preview's frame outline
+}
+applyAccent(store.get('gifgen.accent') || '');
+$('#accentPick').oninput = e => { applyAccent(e.target.value); drawCurve(); };
+$('#bAccentReset').onclick = () => { applyAccent(''); drawCurve(); };
 for (const b of $('#themeSeg').children) b.onclick = () => applyTheme(b.dataset.theme);
 
 // ---- glass panels: settings menu, folding filmstrip, stage between toolbar and filmstrip ----
@@ -599,6 +679,9 @@ function toggleMenu(open = menu.classList.contains('folded')) {
   bMenu.classList.toggle('on', open);
 }
 bMenu.onclick = () => toggleMenu();
+for (const d of menu.querySelectorAll('details')) d.addEventListener('toggle', () => {  // one topic open at a time
+  if (d.open) for (const o of menu.querySelectorAll('details[open]')) if (o !== d) o.open = false;
+});
 for (const h of document.querySelectorAll('.phead')) h.onclick = e => { if (!e.target.closest('.timing')) h.parentElement.classList.toggle('folded'); };
 function layoutPanels() {
   const st = $('#stage').style, b = bar.getBoundingClientRect(), s = $('#strip').getBoundingClientRect();
@@ -648,9 +731,30 @@ function makeThumb(bmp) {
   g.drawImage(bmp, (w - bmp.width * s) / 2, (h - bmp.height * s) / 2, bmp.width * s, bmp.height * s);
   return c;
 }
+// key color and filters, applied per frame and cached until the settings change
+const fxOn = () => S.fx.key || S.fx.bw || S.fx.contrast !== 0 || S.fx.poster > 1;
+function frameSrc(f) {
+  if (!fxOn()) return f.bmp;
+  const key = JSON.stringify(S.fx);
+  if (f.proc?.key === key) return f.proc.c;
+  const c = f.proc?.c || document.createElement('canvas'); c.width = f.w; c.height = f.h;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(f.bmp, 0, 0);
+  const im = g.getImageData(0, 0, f.w, f.h), d = im.data, x = S.fx;
+  const kc = [1, 3, 5].map(i => parseInt(x.keyColor.slice(i, i + 2), 16)), T = x.keyTol * 2.2, band = 12 + T * 0.3;
+  const ct = x.contrast * 1.275, cf = (259 * (ct + 255)) / (255 * (259 - ct)), lv = x.poster > 1 ? x.poster - 1 : 0;
+  const tone = v => { if (cf !== 1) v = cf * (v - 128) + 128; if (lv) v = Math.round(Math.min(255, Math.max(0, v)) / 255 * lv) * 255 / lv; return v; };
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], gg = d[i + 1], b = d[i + 2];
+    if (x.key) { const dist = Math.sqrt((r - kc[0]) ** 2 + (gg - kc[1]) ** 2 + (b - kc[2]) ** 2); if (dist < T + band) d[i + 3] *= Math.max(0, (dist - T) / band); }
+    if (x.bw) r = gg = b = 0.299 * r + 0.587 * gg + 0.114 * b;
+    d[i] = tone(r); d[i + 1] = tone(gg); d[i + 2] = tone(b);
+  }
+  g.putImageData(im, 0, 0); f.proc = { key, c };
+  return c;
+}
 function addFrame(bmp, name, delay) {
   const f = { id: ++uid, bmp, w: bmp.width, h: bmp.height, name, delay: clampDelay(delay) };
-  f.thumb = makeThumb(bmp);
+  f.thumb = makeThumb(frameSrc(f));
   S.frames.push(f);
   if (!S.box) { S.box = { w: f.w, h: f.h }; S.ct = { x: 0, y: 0, s: 1 }; if (S.layout) place('fill'); }
 }
@@ -853,7 +957,24 @@ async function decodePdf(file) {
     return { img: await createImageBitmap(c), pages: doc.numPages };
   } finally { task.destroy(); }
 }
+// built-in layouts: a white page with a transparent opening and today's date in the bottom right corner
+const TEMPLATES = { a4: { w: 1464, h: 2070, name: 'A4' }, square: { w: 1600, h: 1600, name: 'Square' } };  // A4 at 177 dpi
+async function setTemplate(key) {
+  const t = TEMPLATES[key], c = document.createElement('canvas'); c.width = t.w; c.height = t.h;
+  const g = c.getContext('2d'), m = Math.round(t.w * 0.06), band = Math.round(t.w * 0.09), fs = Math.round(t.w * 0.022);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, t.w, t.h);
+  g.clearRect(m, m, t.w - 2 * m, t.h - 2 * m - band);  // the opening
+  const d = new Date(), date = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  g.fillStyle = '#1d1d1f'; g.font = `500 ${fs}px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;
+  g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+  g.fillText(date, t.w - m, t.h - m);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  await setLayout(new File([blob], `${t.name} · ${date}.png`, { type: 'image/png' }));
+  for (const b of $('#tplSeg').children) b.classList.toggle('on', b.dataset.tpl === key);
+}
+for (const b of $('#tplSeg').children) b.onclick = () => setTemplate(b.dataset.tpl);
 async function setLayout(file) {
+  for (const b of $('#tplSeg')?.children || []) b.classList.remove('on');
   try {
     let img, name = file.name;
     if (isPdf(file)) {
@@ -905,7 +1026,7 @@ function clampScale(r, f) {  // keep sizes sensible: frame 2%–5000% of the sou
   return Math.min(hi, Math.max(lo, r.w * f)) / r.w;
 }
 function outSize() {
-  const sc = scene(), k = Math.min(1, MAX_WIDTH / sc.w);
+  const sc = scene(), k = Math.min(1, (S.outW || MAX_WIDTH) / sc.w);
   return { w: Math.max(1, Math.round(sc.w * k)), h: Math.max(1, Math.round(sc.h * k)) };
 }
 function scaleAround(p, f) {
@@ -935,6 +1056,36 @@ function syncScale() {
 // ---- drawing (shared by preview and export) ----
 // GIF pixels are either solid or see-through, so opacity needs a color or image behind the frames
 const alphaNow = () => S.clear ? 1 : S.alpha;
+// fade: the first and last S.fade frames of the loop blend from and to the background
+const fadeAt = (i, n) => !S.fade || i == null || !n ? 1 : Math.min(1, (i + 1) / (S.fade + 1), (n - i) / (S.fade + 1));
+const FONTS = {
+  System: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+  Helvetica: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  Avenir: '"Avenir Next", Avenir, "Segoe UI", sans-serif',
+  Futura: 'Futura, "Century Gothic", "Trebuchet MS", sans-serif',
+  Georgia: 'Georgia, "Times New Roman", serif',
+  Times: '"Times New Roman", Times, serif',
+  Didot: 'Didot, "Bodoni 72", "Bodoni MT", Georgia, serif',
+  Courier: '"Courier New", Courier, monospace',
+  Menlo: 'Menlo, Consolas, "DejaVu Sans Mono", monospace',
+  Impact: 'Impact, "Arial Black", sans-serif',
+  Marker: '"Marker Felt", "Comic Sans MS", cursive',
+  'ES Klarheit': '"ES Klarheit Grotesk", "ESKlarheitGrotesk", "ES Klarheit", "Helvetica Neue", Arial, sans-serif',  // if installed
+};
+// text: drawn in scene units, position and size stored as fractions of the GIF so a layout switch keeps it in place
+function textFont(sc = scene()) { const t = S.text; return `${t.bold ? 700 : 400} ${t.size * sc.w}px ${FONTS[t.font] || FONTS.System}`; }
+const measureCtx = document.createElement('canvas').getContext('2d');
+function textBox() {  // scene units
+  const t = S.text; if (!t.str.trim() || !S.box) return null;
+  const sc = scene(); measureCtx.font = textFont(sc);
+  return { x: t.x * sc.w, y: t.y * sc.h, w: measureCtx.measureText(t.str).width, h: t.size * sc.w * 1.2 };
+}
+function drawText(g) {
+  const b = textBox(); if (!b) return;
+  g.save(); g.globalAlpha = 1; g.font = textFont(); g.fillStyle = S.text.color;
+  g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(S.text.str, b.x, b.y);
+  g.restore();
+}
 function drawScene(g, W, H, f, preview, opts = {}) {
   const sc = scene(), k = W / sc.w;
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -948,15 +1099,23 @@ function drawScene(g, W, H, f, preview, opts = {}) {
   }
   const F = frameRect(), C = contentRect(F);
   if (f && F) {
-    const fit = () => { const s = Math.min(C.w / f.w, C.h / f.h); g.drawImage(f.bmp, C.x + (C.w - f.w * s) / 2, C.y + (C.h - f.h * s) / 2, f.w * s, f.h * s); };
-    if (preview && S.crop) { g.globalAlpha = 0.3 * alphaNow(); fit(); g.globalAlpha = 1; }  // the cropped-away parts, faint
-    g.save(); g.globalAlpha = alphaNow(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip(); fit(); g.restore();
+    const fit = fr => { const s = Math.min(C.w / fr.w, C.h / fr.h); g.drawImage(frameSrc(fr), C.x + (C.w - fr.w * s) / 2, C.y + (C.h - fr.h * s) / 2, fr.w * s, fr.h * s); };
+    const a = alphaNow() * fadeAt(opts.i, opts.n);
+    if (preview && S.crop) { g.globalAlpha = 0.3 * a; fit(f); g.globalAlpha = 1; }  // the cropped-away parts, faint
+    g.save(); g.beginPath(); g.rect(F.x, F.y, F.w, F.h); g.clip();
+    if (preview && S.onion && seq.length > 2) {  // previous and next frame, faint
+      g.globalAlpha = 0.22;
+      for (const o of [seq[(pos - 1 + seq.length) % seq.length], seq[(pos + 1) % seq.length]]) if (o !== f) fit(o);
+    }
+    g.globalAlpha = a; fit(f); g.restore();
   }
   if (layoutOn() && opts.layout !== false) {
     g.globalAlpha = preview && (dragView || S.crop) ? 0.45 : 1;
     g.drawImage(S.layout.img, 0, 0, sc.w, sc.h);
     g.globalAlpha = 1;
   }
+  if (opts.text !== false) drawText(g);
+  if (preview && textDrag) { const b = textBox(); if (b) { const px = devicePixelRatio / k; g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent'); g.lineWidth = 1.5 * px; g.setLineDash([4 * px, 3 * px]); g.strokeRect(b.x - 4 * px, b.y - 4 * px, b.w + 8 * px, b.h + 8 * px); g.setLineDash([]); } }
   if (preview && F && (layoutOn() || S.crop)) {  // frame, picture and handles, preview only
     const px = devicePixelRatio / k;  // one css px in scene units
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent');
@@ -990,7 +1149,7 @@ function sizePreview() {
 new ResizeObserver(sizePreview).observe($('#stage'));
 function draw() {
   if (!seq.length) return;
-  drawScene(pctx, canvas.width, canvas.height, seq[pos], true);
+  drawScene(pctx, canvas.width, canvas.height, seq[pos], true, { i: pos, n: seq.length });
   highlight();
 }
 let lastCur = null;
@@ -1033,11 +1192,62 @@ function drawOverview() {
 }
 new ResizeObserver(drawOverview).observe($('#overview'));
 const fmtT = ms => (ms / 1000).toFixed(2) + ' s';
+// ---- timing curve: one point per frame, height = duration; drag across it to draw the durations ----
+const cv = $('#curve canvas');
+let curveMax = 200, curveDrag = null, curvePos = -1;
+const CPAD = 7;
+function drawCurve() {
+  const n = S.frames.length;
+  $('#curve').classList.toggle('hidden', n < 2);
+  const W = cv.clientWidth, H = cv.clientHeight; if (!W || n < 2) return;
+  cv.width = Math.round(W * devicePixelRatio); cv.height = Math.round(H * devicePixelRatio);
+  const g = cv.getContext('2d'); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  $('#curve').classList.toggle('even', S.frames.every(f => f.delay === S.frames[0].delay));
+  if (!curveDrag) curveMax = Math.max(200, Math.ceil(Math.max(...S.frames.map(f => f.delay)) * 1.25 / 50) * 50);  // fixed while drawing
+  const X = i => CPAD + i / (n - 1) * (W - 2 * CPAD), Y = ms => H - 4 - ms / curveMax * (H - 10);
+  const css = getComputedStyle(document.documentElement), muted = css.getPropertyValue('--muted'), acc = css.getPropertyValue('--accent');
+  const P = S.frames.map((f, i) => S.picked.size > 1 && S.picked.has(f) ? i : -1).filter(i => i >= 0);
+  if (P.length) { g.fillStyle = css.getPropertyValue('--accent-soft'); const h = (W - 2 * CPAD) / (n - 1) / 2; g.fillRect(X(P[0]) - h, 0, X(P[P.length - 1]) - X(P[0]) + 2 * h, H); }
+  g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, H - 3.5); g.lineTo(W, H - 3.5); g.stroke();
+  g.strokeStyle = muted; g.lineWidth = 1.5; g.lineJoin = 'round'; g.beginPath();
+  S.frames.forEach((f, i) => i ? g.lineTo(X(i), Y(f.delay)) : g.moveTo(X(i), Y(f.delay))); g.stroke();
+  const cur = S.frames.indexOf(seq[pos]); curvePos = cur;
+  g.fillStyle = muted;
+  if (n <= 80) S.frames.forEach((f, i) => { g.beginPath(); g.arc(X(i), Y(f.delay), 1.8, 0, 7); g.fill(); });
+  if (cur >= 0) { g.fillStyle = acc; g.beginPath(); g.arc(X(cur), Y(S.frames[cur].delay), 3.5, 0, 7); g.fill(); }
+  const show = curveDrag?.last;
+  if (show != null) {
+    const x = X(show), y = Y(S.frames[show].delay), label = S.frames[show].delay + ' ms';
+    g.font = '600 11px -apple-system, sans-serif'; g.textBaseline = 'middle';
+    g.textAlign = x > W - 60 ? 'right' : 'left'; g.fillStyle = css.getPropertyValue('--fg');
+    g.fillText(label, x + (x > W - 60 ? -8 : 8), Math.max(8, Math.min(H - 8, y)));
+  }
+}
+function paintCurve(e) {
+  const r = cv.getBoundingClientRect(), n = S.frames.length;
+  const i = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left - CPAD) / (r.width - 2 * CPAD))) * (n - 1));
+  const ms = Math.max(MIN_DELAY, curveMax * Math.max(0, Math.min(1, (r.height - 4 - (e.clientY - r.top)) / (r.height - 10))));
+  const from = curveDrag.last ?? i, m0 = curveDrag.lastMs ?? ms;
+  for (let k = Math.min(from, i); k <= Math.max(from, i); k++) {  // fill frames a fast move skipped
+    const t = from === i ? 1 : (k - from) / (i - from);
+    S.frames[k].delay = clampDelay(Math.max(MIN_DELAY, m0 + (ms - m0) * t));
+  }
+  curveDrag.last = i; curveDrag.lastMs = ms;
+  [...$('#tiles').children].forEach((t, k) => { const inp = t.querySelector('input'); if (inp && S.frames[k]) inp.value = S.frames[k].delay; });
+  updateInfo(); drawCurve();
+}
+$('#bCurveReset').onclick = () => ease('even');
+$('#curve').addEventListener('pointerdown', e => { if (S.frames.length < 2 || e.target.closest('#bCurveReset')) return; $('#curve').setPointerCapture(e.pointerId); curveDrag = {}; paintCurve(e); });
+$('#curve').addEventListener('pointermove', e => { if (curveDrag) paintCurve(e); });
+for (const ev of ['pointerup', 'pointercancel']) $('#curve').addEventListener(ev, () => { if (curveDrag) { curveDrag = null; changed(); } });
+new ResizeObserver(drawCurve).observe($('#curve'));
 function placePlayhead() {
+  if (S.frames.indexOf(seq[pos]) !== curvePos && !curveDrag) drawCurve();
   if (!seq.length || !ovTotal) return;
   const t = ovStart[pos] + (S.playing ? Math.min(acc, seq[pos].delay) : 0);
   $('#playhead').style.left = (t / ovTotal * 100) + '%';
-  const tc = `<b>${pos + 1}</b> / ${seq.length} · <b>${fmtT(ovStart[pos])}</b> / ${fmtT(ovTotal)}`;
+  const pad = (v, like) => String(v).padStart(String(like).length, '\u2007');  // figure spaces: the width stays put while playing
+  const tc = `<b>${pad(pos + 1, seq.length)}</b> / ${seq.length} · <b>${pad(fmtT(ovStart[pos]), fmtT(ovTotal))}</b> / ${fmtT(ovTotal)}`;
   if (tc !== lastTc) { $('#tc').innerHTML = tc; lastTc = tc; }
 }
 function scrubTo(e) {
@@ -1092,13 +1302,28 @@ function startGesture() {
     } else gesture = { type: 'resize', left: h % 2 === 0, top: h < 2, ax: h % 2 === 0 ? F.x + F.w : F.x, ay: h < 2 ? F.y + F.h : F.y };
   } else gesture = null;
 }
+// dragging the text, if there is one under the pointer; it comes before moving the picture
+let textDrag = null;
+function overText(p) { const b = textBox(), m = 6 * cssToScene(); return b && p.x >= b.x - m && p.x <= b.x + b.w + m && p.y >= b.y - m && p.y <= b.y + b.h + m; }
 canvas.addEventListener('pointerdown', e => {
+  const p = toScene(e);
+  if (overText(p)) {
+    e.stopImmediatePropagation(); canvas.setPointerCapture(e.pointerId);
+    textDrag = { id: e.pointerId, p0: p, x0: S.text.x, y0: S.text.y }; dirty = true; return;
+  }
   if (!interactive()) return;
   canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, toScene(e));
   startGesture(); dragView = true; dirty = true;
 });
 canvas.addEventListener('pointermove', e => {
-  if (!interactive()) return;
+  if (textDrag) {
+    if (e.pointerId !== textDrag.id) return;
+    const p = toScene(e), sc = scene();
+    S.text.x = textDrag.x0 + (p.x - textDrag.p0.x) / sc.w; S.text.y = textDrag.y0 + (p.y - textDrag.p0.y) / sc.h;
+    textUI(); dirty = true; return;
+  }
+  if (!ptrs.has(e.pointerId) && overText(toScene(e))) { canvas.style.cursor = 'move'; return; }
+  if (!interactive()) { canvas.style.cursor = ''; return; }
   if (!ptrs.has(e.pointerId)) {  // hover cursor
     const h = hitHandle(toScene(e));
     canvas.style.cursor = h === null ? 'move' : HANDLE_CURSOR[h];
@@ -1133,6 +1358,7 @@ canvas.addEventListener('pointermove', e => {
   dirty = true;
 });
 const endPtr = e => {
+  if (textDrag && e.pointerId === textDrag.id) { textDrag = null; dirty = true; return; }
   if (!ptrs.delete(e.pointerId)) return;
   startGesture();
   if (!ptrs.size) { dragView = false; dirty = true; }
@@ -1156,7 +1382,7 @@ function renderStrip() {
       <label><input type="number" min="${MIN_DELAY}" step="10" value="${f.delay}"> ms</label>
       <span class="mv touch-only"><button data-mv="-1">‹</button><button data-mv="1">›</button></span>`;
     const th = t.querySelector('.thumb'); th.prepend(f.thumb);
-    th.onclick = e => { if (!e.target.closest('.del')) showFrame(f); };
+    th.onclick = e => { if (!e.target.closest('.del')) pick(f, e); };
     t.querySelector('.del').onclick = () => removeFrame(f);
     const inp = t.querySelector('input');
     inp.oninput = () => { if (+inp.value >= MIN_DELAY) { f.delay = clampDelay(inp.value); updateInfo(); } };
@@ -1181,7 +1407,21 @@ function renderStrip() {
   });
   renderSel(); dirty = true;
 }
-function renderSel() { for (const t of $('#tiles').children) t.classList.toggle('sel', S.sel && +t.dataset.id === S.sel.id); }
+function renderSel() {
+  [...$('#tiles').children].forEach((t, i) => { const f = S.frames[i]; t.classList.toggle('sel', !!f && (S.picked.has(f) || S.sel === f)); });
+  drawCurve();
+}
+// click: one frame; shift-click: the range from the last clicked one; ⌘/ctrl-click: add or remove one
+function pick(f, e) {
+  if (e.shiftKey && S.frames.includes(S.anchor)) {
+    const a = S.frames.indexOf(S.anchor), b = S.frames.indexOf(f);
+    S.picked = new Set(S.frames.slice(Math.min(a, b), Math.max(a, b) + 1));
+  } else if (e.metaKey || e.ctrlKey) { S.picked.has(f) ? S.picked.delete(f) : S.picked.add(f); S.anchor = f; }
+  else { S.picked = new Set([f]); S.anchor = f; }
+  showFrame(f); updateInfo();
+}
+// what the frame tools work on: the selected range, or all frames
+function targets() { const p = S.frames.filter(f => S.picked.has(f)); return p.length > 1 ? p : S.frames; }
 function moveFrame(from, to) {  // to = insert position before removal
   if (from < 0 || from >= S.frames.length) return;
   to = Math.max(0, Math.min(S.frames.length, to));
@@ -1199,6 +1439,7 @@ function removeFrame(f) {
 
 // ---- state changes ----
 function changed() {
+  S.picked = new Set([...S.picked].filter(f => S.frames.includes(f)));
   if (!S.frames.length) { S.demo = false; S.box = null; S.sel = null; S.crop = false; $('#bCrop').classList.remove('on'); }
   const cur = seq[pos];
   seq = S.boomerang && S.frames.length > 2 ? S.frames.concat(S.frames.slice(1, -1).reverse()) : S.frames.slice();
@@ -1218,12 +1459,13 @@ function updateInfo() {
   const n = S.frames.length;
   if (!n) { $('#info').textContent = 'None yet'; $('#exportInfo').textContent = exportText(); return; }
   const ms = seq.reduce((a, f) => a + Math.round(f.delay / 10) * 10, 0);
-  $('#info').textContent = `${n} frame${n > 1 ? 's' : ''}` + (seq.length !== n ? ` · ${seq.length} in loop` : '') + ` · ${(ms / 1000).toFixed(2)} s`;
+  const np = S.picked.size > 1 ? S.picked.size : 0;
+  $('#info').textContent = `${n} frame${n > 1 ? 's' : ''}` + (np ? ` · ${np} selected` : '') + (seq.length !== n ? ` · ${seq.length} in loop` : '') + ` · ${(ms / 1000).toFixed(2)} s`;
   if (document.activeElement !== $('#total')) $('#total').value = (ms / 1000).toFixed(2);
-  const same = S.frames.every(f => f.delay === S.frames[0].delay) ? S.frames[0].delay : '';  // empty shows "mixed"
+  const T = targets(), same = T.every(f => f.delay === T[0].delay) ? T[0].delay : '';  // empty shows "mixed"
   if (document.activeElement !== $('#defDelay')) $('#defDelay').value = same;
   if (document.activeElement !== $('#fps')) $('#fps').value = same && +(1000 / same).toFixed(1);
-  drawOverview();
+  drawOverview(); if (!curveDrag) drawCurve(); textUI();
   $('#exportInfo').textContent = exportText();
 }
 function exportText() {
@@ -1241,7 +1483,7 @@ function say(msg, isErr) {
 $('#defDelay').value = S.delay;
 function setAllDelays(ms) {
   S.delay = clampDelay(ms);  // also the duration of images added later
-  for (const f of S.frames) f.delay = S.delay;
+  for (const f of targets()) f.delay = S.delay;
   changed();
 }
 $('#defDelay').onchange = () => { if ($('#defDelay').value === '') updateInfo(); else setAllDelays(+$('#defDelay').value); };
@@ -1267,7 +1509,88 @@ function setLength(sec) {
   changed();
 }
 $('#total').onchange = () => setLength(+$('#total').value);
-$('#bReverse').onclick = () => { S.frames.reverse(); changed(); };
+// frame tools work on the selected range, or on all frames
+$('#bReverse').onclick = () => {
+  const T = targets(), idx = T.map(f => S.frames.indexOf(f)), rev = [...T].reverse();
+  idx.forEach((k, j) => { S.frames[k] = rev[j]; }); changed();
+};
+$('#bHalve').onclick = () => {
+  const T = targets(); if (T.length < 2) return;
+  const drop = new Set(T.filter((f, i) => i % 2));
+  for (const f of drop) { f.bmp.close?.(); if (S.sel === f) S.sel = null; }
+  S.frames = S.frames.filter(f => !drop.has(f)); changed();
+};
+$('#bDouble').onclick = async () => {
+  const T = new Set(targets()), out = [];
+  for (const f of S.frames) {
+    out.push(f);
+    if (!T.has(f)) continue;
+    const bmp = await createImageBitmap(f.bmp);  // its own copy: removing one must not break the other
+    const c = { ...f, id: ++uid, bmp, proc: null }; c.thumb = makeThumb(frameSrc(c));
+    out.push(c); if (S.picked.has(f)) S.picked.add(c);
+  }
+  S.frames = out; changed();
+};
+// timing presets: spread the same total time differently over the frames
+function ease(kind) {
+  const T = targets(), n = T.length; if (n < 2) return;
+  const total = T.reduce((a, f) => a + f.delay, 0);
+  const w = T.map((f, i) => { const u = i / (n - 1); return kind === 'in' ? 1 + 3 * (1 - u) ** 2 : kind === 'out' ? 1 + 3 * u ** 2 : kind === 'both' ? 1 + 3 * (2 * u - 1) ** 2 : 1; });
+  const sw = w.reduce((a, b) => a + b, 0);
+  T.forEach((f, i) => { f.delay = clampDelay(Math.max(MIN_DELAY, total * w[i] / sw)); });
+  changed();
+}
+for (const b of $('#easeSeg').children) b.onclick = () => ease(b.dataset.ease);
+$('#fade').oninput = () => { S.fade = +$('#fade').value; $('#fadeOut').textContent = S.fade ? S.fade + ' fr' : 'off'; dirty = true; };
+$('#onion').onchange = e => { S.onion = e.target.checked; dirty = true; };
+// key color and filters: preview right away, thumbnails a moment later
+let fxTimer;
+function fxChanged() {
+  dirty = true; palettes.clear(); sampleCache = null;
+  clearTimeout(fxTimer);
+  fxTimer = setTimeout(() => { for (const f of S.frames) f.thumb = makeThumb(frameSrc(f)); renderStrip(); drawOverview(); }, 300);
+}
+const fxInputs = { keyOn: ['key', 'checked'], keyColor: ['keyColor', 'value'], keyTol: ['keyTol', 'value'], bw: ['bw', 'checked'], contrast: ['contrast', 'value'], poster: ['poster', 'value'] };
+for (const [id, [k, prop]] of Object.entries(fxInputs)) $('#' + id).oninput = () => {
+  const v = $('#' + id)[prop]; S.fx[k] = prop === 'checked' || k === 'keyColor' ? v : +v;
+  $('#keyTolOut').textContent = S.fx.keyTol; $('#contrastOut').textContent = S.fx.contrast;
+  $('#posterOut').textContent = S.fx.poster > 1 ? S.fx.poster + ' tones' : 'off';
+  if (k === 'keyColor') { S.fx.key = true; $('#keyOn').checked = true; }  // picking a color turns it on
+  fxChanged();
+};
+// text
+// text: X, Y and size shown in px of the exported GIF
+for (const name of Object.keys(FONTS)) $('#txtFont').append(new Option(name, name));
+function textUI() {
+  const o = outSize(), set = (id, v) => { if (document.activeElement !== $(id)) $(id).value = Math.round(v); };
+  set('#txtX', S.text.x * o.w); set('#txtY', S.text.y * o.h); set('#txtSize', S.text.size * o.w);
+  $('#txtFont').value = S.text.font; $('#txtBold').checked = S.text.bold;
+}
+$('#txt').oninput = () => { S.text.str = $('#txt').value; dirty = true; };
+$('#txtFont').onchange = () => { S.text.font = $('#txtFont').value; dirty = true; };
+$('#bFont').onclick = () => $('#fontFile').click();
+$('#fontFile').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  for (const f of files) {
+    const name = f.name.replace(/\.(otf|ttf|woff2?)$/i, '');
+    try {
+      const face = new FontFace(name, await f.arrayBuffer()); await face.load(); document.fonts.add(face);
+      if (!FONTS[name]) $('#txtFont').append(new Option(name, name));
+      FONTS[name] = `"${name}", sans-serif`;
+      S.text.font = name; S.text.bold = false;  // a font file is one weight already
+      textUI(); dirty = true;
+    } catch (err) { console.warn(err); say(`${f.name}: not a font this browser can read`, true); }
+  }
+};
+$('#txtBold').onchange = () => { S.text.bold = $('#txtBold').checked; dirty = true; };
+$('#txtColor').oninput = () => { S.text.color = $('#txtColor').value; dirty = true; };
+for (const [id, k, dim] of [['#txtX', 'x', 'w'], ['#txtY', 'y', 'h'], ['#txtSize', 'size', 'w']])
+  $(id).oninput = () => { const v = +$(id).value; if ($(id).value !== '' && (k !== 'size' || v >= 1)) { S.text[k] = v / outSize()[dim]; dirty = true; } };
+textUI();
+// export width
+const outUI = () => { for (const b of $('#outSeg').children) b.classList.toggle('on', +b.dataset.w === S.outW); };
+for (const b of $('#outSeg').children) b.onclick = () => { S.outW = +b.dataset.w; outUI(); updateInfo(); textUI(); };
+outUI();
 $('#bClear').onclick = () => { if (S.frames.length && confirm(`Remove all ${S.frames.length} frames?`)) { for (const f of S.frames) f.bmp.close?.(); S.frames = []; changed(); } };
 $('#bPlay').onclick = () => setPlaying(!S.playing);
 setPlaying(S.playing);
@@ -1281,7 +1604,7 @@ $('#bLayout').onclick = () => $('#layoutFile').click();
 $('#layoutFile').onchange = e => { if (e.target.files[0]) setLayout(e.target.files[0]); e.target.value = ''; };
 $('#useLayout').onchange = $('#useLayout2').onchange = e => {
   S.useLayout = e.target.checked;
-  if (S.useLayout && !S.layout) $('#layoutFile').click();
+  if (S.useLayout && !S.layout) setTemplate('a4');  // start with a template; your own file can replace it
   changed();
 };
 $('#bFill').onclick = () => place('fill');
@@ -1330,7 +1653,13 @@ addEventListener('keydown', e => {
   }
   else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && interactive()) { e.preventDefault(); const r = target(); setTarget({ ...r, y: r.y + (e.key === 'ArrowDown' ? 10 : -10) * cssToScene() }); }
   else if (e.key === 'Escape' && S.crop) setCrop(false);
+  else if (e.key === 'Escape' && S.picked.size > 1) { S.picked = new Set(); renderSel(); updateInfo(); }
   else if (e.key === 'Escape' && !menu.classList.contains('folded')) toggleMenu(false);
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && S.picked.size > 1) {
+    e.preventDefault();
+    for (const f of S.picked) f.bmp.close?.();
+    S.frames = S.frames.filter(f => !S.picked.has(f)); if (!S.frames.includes(S.sel)) S.sel = S.frames[0] || null; S.picked = new Set(); changed();
+  }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); removeFrame(S.sel); }
 });
 
@@ -1410,16 +1739,17 @@ function concrete(step) {
   return s;
 }
 const exportCanvas = document.createElement('canvas'), picCanvas = document.createElement('canvas');
-function renderExport(s, f) {
+function renderExport(s, f, i) {
   const c = exportCanvas; if (c.width !== s.W || c.height !== s.H) { c.width = s.W; c.height = s.H; }
-  const g = c.getContext('2d', { willReadFrequently: true });
-  if (s.pic === 1) { drawScene(g, s.W, s.H, f, false); return g; }
+  const g = c.getContext('2d', { willReadFrequently: true }), at = { i, n: s.list.length };
+  if (s.pic === 1) { drawScene(g, s.W, s.H, f, false, at); return g; }
   // picture at lower resolution, enlarged without smoothing (compresses far better); layout stays sharp
   const p = picCanvas; p.width = Math.max(1, Math.round(s.W * s.pic)); p.height = Math.max(1, Math.round(s.H * s.pic));
-  drawScene(p.getContext('2d'), p.width, p.height, f, false, { layout: false });
+  drawScene(p.getContext('2d'), p.width, p.height, f, false, { ...at, layout: false, text: false });
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, s.W, s.H); g.imageSmoothingEnabled = false; g.drawImage(p, 0, 0, s.W, s.H);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   if (layoutOn()) g.drawImage(S.layout.img, 0, 0, s.W, s.H);
+  const k = s.W / scene().w; g.setTransform(k, 0, 0, k, 0, 0); drawText(g); g.setTransform(1, 0, 0, 1, 0, 0);  // text stays sharp
   return g;
 }
 const regionOf = (g, r) => g.getImageData(r.x, r.y, r.w, r.h).data;
@@ -1440,9 +1770,9 @@ function renderSamples(s) {
   const key = [s.W, s.H, s.pic, s.skip, s.region.x, s.region.y, s.region.w, s.region.h].join();
   if (sampleCache?.key === key) return sampleCache;
   sampleCache = null;
-  const L = s.list, g0 = renderExport(s, L[0].f);
+  const L = s.list, g0 = renderExport(s, L[0].f, 0);
   const first = g0.getImageData(0, 0, s.W, s.H).data;
-  const pairs = samplePositions(L.length).map(([a, b]) => [regionOf(renderExport(s, L[a].f), s.region), regionOf(renderExport(s, L[b].f), s.region)]);
+  const pairs = samplePositions(L.length).map(([a, b]) => [regionOf(renderExport(s, L[a].f, a), s.region), regionOf(renderExport(s, L[b].f, b), s.region)]);
   return sampleCache = { key, first, pairs };
 }
 const palettes = new Map();
@@ -1481,7 +1811,7 @@ async function encodeAll(enc, s, onProgress) {
   let size = 0;
   const L = s.list;
   for (let i = 0; i < L.length; i++) {
-    const g = renderExport(s, L[i].f), full = i === 0, r = full ? { x: 0, y: 0, w: s.W, h: s.H } : s.region;
+    const g = renderExport(s, L[i].f, i), full = i === 0, r = full ? { x: 0, y: 0, w: s.W, h: s.H } : s.region;
     const d = regionOf(g, r);
     pending.push(enc.call({ type: 'frame', rgba: d, delay: L[i].delay, full, ...r }, [d.buffer]).then(m => { size = m.size; }));
     if (pending.length >= 2) await pending.shift();  // keep the worker busy, but memory flat
@@ -1495,7 +1825,8 @@ async function encodeAll(enc, s, onProgress) {
 // ---- size estimate on the export button: runs in the background once nothing has changed for a moment ----
 let estKey = '', estAt = 0, estRun = 0, estDone = '', estPromise = null, exporting = false;
 const sceneKey = () => [S.frames.map(f => f.id).join(','), seq.length, S.useLayout, S.layout?.name, S.layout?.w,
-  JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg, S.bgImg?.url, S.alpha].join('|');
+  JSON.stringify(S.fr), JSON.stringify(S.ct), S.box?.w, S.box?.h, S.clear, S.clear || S.bg, S.bgImg?.url, S.alpha,
+  S.fade, S.outW, JSON.stringify(S.fx), JSON.stringify(S.text)].join('|');
 async function runEstimate(key) {
   const id = ++estRun, enc = startEncoder();
   palettes.clear(); sampleCache = null;
@@ -1564,10 +1895,10 @@ $('#bExport').onclick = async () => {
   progress(null); btn.disabled = !S.frames.length; if (wasPlaying) setPlaying(true); exporting = false;
 };
 
-// ---- example on startup: a ball falling in 5 frames (top → squash on the ground), played as boomerang ----
+// ---- example on startup: a ball falling in 10 frames (top → squash on the ground), played as boomerang ----
 // Turning boomerang off shows why it is there: the ball then jumps back to the top.
 async function addDemo() {
-  const W = 640, H = 480, GROUND = 400, R = 46, RISE = 250, N = 5;
+  const W = 640, H = 480, GROUND = 400, R = 46, RISE = 250, N = 10;
   for (let i = 0; i < N; i++) {
     const t = 0.5 + i / (2 * (N - 1)), h = 1 - (2 * t - 1) ** 2, v = 4 * (2 * t - 1);  // from the top (h 1) down to the ground (h 0); speed
     let sx, sy;
@@ -1580,7 +1911,9 @@ async function addDemo() {
     g.save(); g.translate(W / 2, bottom - R * sy); g.scale(sx, sy);
     g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill();
     g.restore();
-    addFrame(await createImageBitmap(c), `ball-${String(i + 1).padStart(2, '0')}.png`, 80);
+    g.font = `600 72px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif`;  // frame number, top left
+    g.textBaseline = 'top'; g.fillText(String(i + 1), 28, 24);
+    addFrame(await createImageBitmap(c), `ball-${String(i + 1).padStart(2, '0')}.png`, 1000 / 12);  // 12 fps → 80 ms, GIFs count in 10 ms steps
   }
   S.demo = true; S.boomerang = true; $('#bBoom').classList.add('on'); changed();
 }
