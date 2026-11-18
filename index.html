@@ -10,7 +10,7 @@
 <style>
   :root {
     --bg: #151517; --fg: #f5f5f7; --muted: rgba(235,235,245,.6); --line: rgba(255,255,255,.1);
-    --tint: rgba(38,38,44,.42); --fill: rgba(255,255,255,.08); --fill-hi: rgba(255,255,255,.16);
+    --tint: rgba(38,38,44,.16); --fill: rgba(255,255,255,.08); --fill-hi: rgba(255,255,255,.16);
     --rim: rgba(255,255,255,.55); --rim-lo: rgba(255,255,255,.12);
     --accent: #8a3a16; --accent-soft: rgba(138,58,22,.32);
     --shadow: 0 10px 40px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25);
@@ -18,7 +18,7 @@
   }
   :root[data-theme="light"] {
     --bg: #f4f0e8; --fg: #1d1d1f; --muted: rgba(60,60,67,.62); --line: rgba(0,0,0,.08);
-    --tint: rgba(255,255,255,.42); --fill: rgba(0,0,0,.05); --fill-hi: rgba(0,0,0,.09);
+    --tint: rgba(255,255,255,.2); --fill: rgba(0,0,0,.05); --fill-hi: rgba(0,0,0,.09);
     --rim: rgba(255,255,255,.95); --rim-lo: rgba(255,255,255,.4);
     --accent: #8a3a16; --accent-soft: rgba(138,58,22,.16);
     --shadow: 0 10px 36px rgba(30,40,80,.14), 0 2px 6px rgba(30,40,80,.08);
@@ -38,10 +38,14 @@
   svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
   /* liquid glass: translucent tint, strong blur, light rim brighter on the lit edges */
-  .ui { position: fixed; background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.02) 50%), var(--tint);
+  /* clear glass: little tint, light blur, the dots and the picture show through */
+  .ui { position: fixed; background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.01) 50%), var(--tint);
     border-radius: 22px; padding: 10px;
-    backdrop-filter: blur(28px) saturate(1.9) brightness(1.04); -webkit-backdrop-filter: blur(28px) saturate(1.9) brightness(1.04);
+    backdrop-filter: blur(2.5px) saturate(1.5) brightness(1.06); -webkit-backdrop-filter: blur(2.5px) saturate(1.5) brightness(1.06);
     box-shadow: var(--shadow), inset 0 1px 1px rgba(255,255,255,.18), inset 0 -1px 1px rgba(0,0,0,.06); }
+  /* menus and popovers float over the picture: a bit more frost so their text stays readable */
+  :is(#addMenu, #qualMenu, #expMenu, #layoutBox, #framesBox, #ctxMenu, #curveMenu, #menu) { background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.02) 50%), color-mix(in srgb, var(--tint) 100%, var(--bg) 45%);
+    backdrop-filter: blur(22px) saturate(1.7); -webkit-backdrop-filter: blur(22px) saturate(1.7); }
   .ui::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
     background: linear-gradient(135deg, var(--rim), var(--rim-lo) 30%, transparent 50%, var(--rim-lo) 75%, var(--rim));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
@@ -52,7 +56,7 @@
     transition: background .2s, color .2s, transform .15s, box-shadow .2s; white-space: nowrap; }
   button:hover { background: var(--fill); }
   button:active { transform: scale(.96); }
-  button.on { background: var(--accent-soft); color: var(--accent); }
+  button.on { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 45%, var(--fg)); }  /* readable on dark and light */
   button:disabled { opacity: .35; cursor: default; transform: none; }
   button:disabled:hover { background: transparent; }
   button.icon { padding: 0; width: 36px; height: 36px; }
@@ -66,6 +70,9 @@
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   [data-tip] { position: relative; }
+  /* no tooltip while a menu or panel is open: it would cover it */
+  body:has(:is(#addMenu, #qualMenu, #expMenu, #layoutBox, #framesBox, #ctxMenu):not(.hidden)) [data-tip]::after,
+  body:has(#menu:not(.folded)) [data-tip]::after { display: none !important; }
   @media (hover: hover) {
     [data-tip]:hover::after { content: attr(data-tip); position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
       background: rgba(20,20,24,.82); color: #fff; font-size: 11px; font-weight: 500; padding: 5px 9px; border-radius: 8px; white-space: nowrap;
@@ -85,7 +92,7 @@
 
   /* switch */
   .switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
-  .switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
   .switch .track { width: 38px; height: 22px; border-radius: 11px; background: var(--fill-hi); position: relative; transition: background .25s; flex: none; }
   .switch .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
     background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.3); transition: transform .3s cubic-bezier(.3,1.5,.6,1); }
@@ -119,6 +126,9 @@
   #menu summary { list-style: none; display: flex; align-items: center; padding: 10px 10px; border-radius: 12px; cursor: pointer; user-select: none;
     font-size: 13px; font-weight: 600; }
   #menu summary::-webkit-details-marker { display: none; }
+  #menu details.only > summary { pointer-events: none; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding-bottom: 4px; }
+  #menu details.only > summary::after { display: none; }
+  #menu details.only[open] { background: none; }
   #menu summary:hover { background: var(--fill); }
   #menu summary::after { content: ''; margin-left: auto; width: 7px; height: 7px; border: solid var(--muted); border-width: 0 1.6px 1.6px 0;
     transform: rotate(-45deg); transition: transform .2s; }
@@ -229,6 +239,11 @@
   :is(#menu, #inspPanel) select:focus { outline: none; border-color: var(--accent); }
   :is(#menu, #inspPanel) select option { color: #000; }
   #txtX, #txtY { width: 4.6em; }
+  #inspPanel #txtX, #inspPanel #txtY { width: 4.2em; }
+  #inspPanel .row { flex-wrap: nowrap; }
+  #inspPanel #bgBox .row { flex-wrap: wrap; row-gap: 8px; }
+  #ovWhere { grid-column: 2 / 4; min-width: 0; }
+  #ovWhere button { padding: 5px 8px; white-space: nowrap; }
   #resLabel { position: fixed; z-index: 1; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   #cropBar { top: 70px; left: 50%; transform: translateX(-50%); z-index: 4; padding: 5px 5px 5px 16px; border-radius: 999px; display: flex; align-items: center; gap: 8px; white-space: nowrap; animation: pop .2s ease-out; }
   #cropBar #cropHint { color: var(--muted); margin-right: 6px; }
@@ -245,19 +260,41 @@
   #qualMenu .qn { font-weight: 500; } #qualMenu .qd { grid-column: 2; font-size: 11px; color: var(--muted); }
   #qualMenu .qwait { font-size: 11px; color: var(--muted); padding: 6px 10px 6px; max-width: 250px; }
   #qualMenu .qs { grid-row: 1 / 3; grid-column: 3; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  /* first steps: the screen darkens, numbered notes with arrows point at what to click */
+  #help { position: fixed; inset: 0; z-index: 100; cursor: pointer; animation: helpIn .45s ease-out; }
+  @keyframes helpIn { from { opacity: 0; } }
+  #helpSvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  #helpSvg .dim { fill: rgba(10,10,12,.58); }  /* soft: the app stays visible behind */
+  #helpSvg .ring { fill: none; stroke: rgba(255,255,255,.75); stroke-width: 1.5; }
+  #helpSvg .arrow { fill: none; stroke: #fff; stroke-width: 1.6; }
+  #helpNotes .hl { position: absolute; white-space: nowrap; color: #fff; font-style: italic; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+  .hnum { font-style: normal; display: inline-grid; place-items: center; width: 21px; height: 21px; margin-right: 6px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; vertical-align: 1px; }
+  #helpCard { z-index: 2; position: absolute; width: min(400px, calc(100vw - 40px)); max-height: calc(100vh - 170px); overflow: auto; padding: 16px 20px; border-radius: 18px; background: rgba(20,20,24,.92); box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 20px 60px rgba(0,0,0,.5); color: #fff; }
+  #helpCard h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: rgba(255,255,255,.6); }
+  #helpCard p { margin: 7px 0; font-style: italic; font-size: 13.5px; line-height: 1.35; display: flex; align-items: baseline; }
+  #helpCard p .hnum { flex: none; }
+  #helpCard p { cursor: default; border-radius: 10px; padding: 3px 6px; margin: 2px -6px; transition: opacity .2s, background .2s; }
+  #helpCard p:hover { background: rgba(255,255,255,.07); }
+  #helpCard h3.more { margin-top: 14px; }
+  #helpCard .hhint { margin-top: 12px; font-size: 11.5px; font-style: italic; color: rgba(255,255,255,.5); }
+  #helpCard .hmore { margin-top: 10px; background: rgba(255,255,255,.1); color: #fff; font-style: italic; padding: 6px 14px; }
+  #helpCard .hmore:hover { background: rgba(255,255,255,.18); }
+  #helpSvg .ring, #helpSvg .arrow, #helpNotes .hl { transition: opacity .2s; }
+  #helpHoles .hole { transition: fill-opacity .2s; }
+  #helpCard p span i { opacity: .7; }
   #addMenu { z-index: 30; padding: 5px; border-radius: 14px; display: flex; flex-direction: column; min-width: 170px; animation: pop .15s ease-out; transform-origin: top left; }
   #addMenu button { justify-content: flex-start; border-radius: 9px; padding: 7px 12px; gap: 10px; }
   #addMenu b { width: 18px; text-align: center; font-family: Georgia, serif; font-size: 16px; }
   /* panels next to their controls: layout (under the toggle), frames (above the filmstrip) */
-  #layoutBox, #framesBox, #pictureBox { z-index: 30; padding: 12px 14px 14px; border-radius: 18px; width: 320px; animation: pop .15s ease-out; transform-origin: top left; }
+  #layoutBox, #framesBox { z-index: 30; padding: 12px 14px 14px; border-radius: 18px; width: 320px; animation: pop .15s ease-out; transform-origin: top left; }
   #framesBox { transform-origin: bottom right; }
-  :is(#layoutBox, #framesBox, #pictureBox) .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
-  :is(#layoutBox, #framesBox, #pictureBox) .body { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; align-items: center; }
-  :is(#layoutBox, #framesBox, #pictureBox) .body > label, :is(#layoutBox, #framesBox, #pictureBox) .body .lbl { color: var(--muted); }
-  :is(#layoutBox, #framesBox, #pictureBox) .wide { grid-column: 1 / -1; } :is(#layoutBox, #framesBox, #pictureBox) .span { grid-column: 2 / 4; }
-  :is(#layoutBox, #framesBox, #pictureBox) .body button { padding: 5px 12px; }
-  :is(#layoutBox, #framesBox, #pictureBox) output { font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; color: var(--muted); }
-  :is(#layoutBox, #framesBox, #pictureBox) .switch.wide { color: var(--fg); }
+  :is(#layoutBox, #framesBox) .sub { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+  :is(#layoutBox, #framesBox) .body { display: grid; grid-template-columns: 76px 1fr auto; gap: 10px; align-items: center; }
+  :is(#layoutBox, #framesBox) .body > label, :is(#layoutBox, #framesBox) .body .lbl { color: var(--muted); }
+  :is(#layoutBox, #framesBox) .wide { grid-column: 1 / -1; } :is(#layoutBox, #framesBox) .span { grid-column: 2 / 4; }
+  :is(#layoutBox, #framesBox) .body button { padding: 5px 12px; }
+  :is(#layoutBox, #framesBox) output { font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; color: var(--muted); }
+  :is(#layoutBox, #framesBox) .switch.wide { color: var(--fg); }
   #layoutBox .switch .muted { color: var(--fg); }
   body.picking #preview { cursor: crosshair !important; }
   #bKeyPick.on { background: var(--accent); color: #fff; }
@@ -325,6 +362,7 @@
   .layer .where { padding: 2px 8px; font-size: 11px; color: var(--muted); background: var(--fill); border-radius: 999px; }
   .layer .where:hover { color: var(--fg); background: var(--fill-hi); }
   #ovNone { display: none; } #ovBox.none #ovNone { display: block; }
+  #ovBox.none .body > :not(#ovNone) { display: none !important; }
   #tiles { display: flex; gap: 6px; overflow-x: auto; padding: 2px 6px 4px; min-height: 104px; scrollbar-width: thin; }
   #tiles:empty::before { content: 'Your frames will appear here'; color: var(--muted); align-self: center; margin: 0 auto; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 5px; align-items: center; padding: 5px; border-radius: 14px; position: relative; transition: background .2s; }
@@ -420,12 +458,6 @@
     <label class="switch wide" title="Preview only: the previous and next frame show faintly, to check the spacing"><input type="checkbox" id="onion"><span class="track"></span>Onion skin</label>
     <div class="wide note">Shift-click frames to use these on a range only.</div>
   </div></div>
-<div id="pictureBox" class="ui hidden"><div class="sub">Picture</div><div class="body">
-    <span class="lbl">Background</span>
-    <span class="row span" style="gap:10px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"><button id="bBgImg" class="soft" title="An image behind the frames, filling the whole GIF">Image…</button></span>
-    <span id="bgImgRow" class="row wide hidden"><span class="lbl" style="width:66px"></span><span id="bgImgName" class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="bBgImgDel" class="soft" title="Remove the background image">Remove</button></span>
-    <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
-  </div></div>
 <div id="expMenu" class="ui hidden">
   <div class="sub">GIF size</div>
   <div class="erow"><input id="outCustom" type="number" min="16" max="4000" step="1" title="Width in px · empty = automatic (source size, at most 2070 px wide)"><button id="bLink" class="icon on" title="Keep the aspect ratio"><svg class="i"><use href="#i-link"/></svg></button><input id="outH" type="number" min="16" max="4000" step="1" title="Height in px"><span class="muted">px</span></div>
@@ -443,7 +475,8 @@
   <button id="cmClear">Clear selection</button>
 </div>
 <div id="qualMenu" class="ui hidden"></div>
-<div id="addMenu" class="ui hidden"><button id="addText"><b>T</b>Text</button><button id="addImg"><svg class="i"><use href="#i-images"/></svg>Image</button><span class="msep"></span><button id="addPic"><svg class="i"><use href="#i-sliders"/></svg>Picture…</button><button id="addCropReset" class="hidden"><svg class="i"><use href="#i-sliders"/></svg>Reset crop</button><span class="msep"></span><button id="addFiles"><svg class="i"><use href="#i-plus"/></svg>Choose files…</button></div>
+<div id="help" class="hidden"><svg id="helpSvg"><defs><marker id="helpArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#fff"/></marker><mask id="helpHoles"><rect width="100%" height="100%" fill="#fff"/></mask></defs><rect class="dim" width="100%" height="100%" mask="url(#helpHoles)"/></svg><div id="helpNotes"></div><div id="helpCard"></div></div>
+<div id="addMenu" class="ui hidden"><button id="addText"><b>T</b>Text</button><button id="addImg"><svg class="i"><use href="#i-images"/></svg>Image</button><button id="addCropReset" class="hidden"><svg class="i"><use href="#i-sliders"/></svg>Reset crop</button><span class="msep"></span><button id="addFiles"><svg class="i"><use href="#i-plus"/></svg>Choose files…</button></div>
 
 <main id="stage">
   <canvas id="preview" class="hidden"></canvas>
@@ -456,7 +489,7 @@
       <button id="pick" class="primary"><svg class="i"><use href="#i-plus"/></svg>Choose files</button>
     </div>
     <span class="note"><span class="desk-only">or use <b>+ Add</b> · paste with ⌘V</span></span>
-    <span class="demo-only">Example · drop your images or choose them to replace it</span>
+    <span class="demo-only">Example · drop your images to replace it</span>
   </div>
 </main>
 
@@ -464,10 +497,11 @@
   <button id="bAdd" data-tip="Add frames, text or an image" aria-label="Add"><svg class="i"><use href="#i-plus"/></svg><span class="lbl-opt">Add</span></button>
   <span class="sep"></span>
   <button id="bPlay" class="icon" data-tip="Play / pause · Space" aria-label="Play or pause"></button>
-  <button id="bBoom" class="icon" data-tip="Boomerang: forward, then backward" aria-label="Boomerang"><svg class="i"><use href="#i-boom"/></svg></button>
+  <button id="bBoom" data-tip="Plays forward, then backward"><svg class="i"><use href="#i-boom"/></svg><span class="lbl-opt">Boomerang</span></button>
   <label id="floatSwitch" class="switch" data-tip="Place the GIF into a layout · right-click for settings"><input type="checkbox" id="useLayout"><span class="track"></span><span class="lbl lbl-opt">Layout</span></label>
   <span class="sep"></span>
   <button id="bExport" class="primary" disabled data-tip="Save as GIF · right-click for settings"><svg class="i"><use href="#i-export"/></svg>Export<span id="estSize"></span></button>
+  <button id="bHelp" class="icon" aria-label="How it works" data-tip="How it works"><b style="font-size:15px">?</b></button>
   <button id="bMenu" class="icon" aria-label="Settings" data-tip="Settings"><svg class="i"><use href="#i-more"/></svg></button>
 </div>
 
@@ -480,7 +514,7 @@
 
 
 
-  <details><summary>Appearance</summary><div class="body">
+  <details open class="only"><summary>Appearance</summary><div class="body">
     <span class="lbl">Theme</span>
     <div class="seg" id="themeSeg"><button data-theme="dark">Dark</button><button data-theme="light">Light</button></div>
     <label for="accentPick">Accent</label>
@@ -495,6 +529,12 @@
 <section id="inspPanel" class="ui folded">
   <div class="phead"><svg class="i chev"><use href="#i-chev"/></svg><h1>Properties</h1></div>
   <div id="insp">
+  <details class="isec" id="bgBox"><summary>Background</summary><div class="body">
+    <span class="lbl">Fill</span>
+    <span class="row span" style="gap:10px"><label class="switch" title="Exports a GIF with a transparent background"><input type="checkbox" id="bgClear"><span class="track"></span>Transparent</label><input id="bg" type="color" value="#ffffff" title="Solid color"><button id="bBgImg" class="soft" title="An image behind the frames, filling the whole GIF">Image…</button></span>
+    <span id="bgImgRow" class="row wide hidden"><span class="lbl" style="width:66px"></span><span id="bgImgName" class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button id="bBgImgDel" class="soft" title="Remove the background image">Remove</button></span>
+    <label for="opacity" title="Frames let the background color or image show through. Not with a transparent background: GIF pixels are solid or see-through, nothing in between">Opacity</label><input id="opacity" type="range" min="0" max="100" step="1" value="100"><output id="opacityOut">100%</output>
+  </div></details>
   <details class="isec"><summary>Color</summary><div class="body">
     <div class="wide sub">Remove a color</div>
     <label class="switch wide" title="Every pixel of this color becomes see-through, in every frame"><input type="checkbox" id="keyOn"><span class="track"></span>Make <input id="keyColor" type="color" value="#ffffff" title="Pick the color to remove" style="margin:0 2px"> see-through</label>
@@ -509,17 +549,18 @@
 
 
   <details class="isec" id="ovBox"><summary>Text &amp; images</summary><div class="body">
-    <div class="wide note" id="ovNone">Add text or an image with <b>+ Add</b> or a right-click on the preview.</div>
+    <div class="wide note" id="ovNone">Nothing selected. Add text or an image with <b>+ Add</b> or a right-click on the preview, or click one in Layers.</div>
     <input id="txt" class="wide tonly" type="text" placeholder="Text" autocomplete="off">
+    <span class="lbl" title="Whole GIF: on every frame. Or only on one frame">Shows on</span>
+    <div class="seg" id="ovWhere"><button data-where="all">All frames</button><button data-where="one" title="Only on the frame shown now">One frame</button></div>
     <label for="txtFont" class="tonly">Font</label>
     <span class="row span tonly" style="gap:10px"><select id="txtFont"></select><label class="switch"><input type="checkbox" id="txtBold" checked><span class="track"></span>Bold</label></span>
     <span class="lbl tonly"></span><span class="span tonly"><button id="bFont" class="soft" title="Load a font file (.otf .ttf .woff .woff2) from your computer. Stays in this browser tab, nothing is uploaded">Own font…</button></span>
     <span class="lbl" title="In pixels of the exported GIF, from its top left corner. Or drag it in the preview">Position</span>
     <span class="row span"><span class="muted">X</span><input id="txtX" type="number" step="1"><span class="muted">Y</span><input id="txtY" type="number" step="1"><span class="muted">px</span></span>
     <label for="txtSize" id="txtSizeLbl" title="Text: font size. Image: width. Or scroll over it in the preview">Size</label>
-    <span class="row span"><input id="txtSize" type="number" min="4" step="1"><span class="muted">px</span><input id="txtColor" class="tonly" type="color" value="#000000" title="Text color" style="margin-left:auto"></span>
-    <span class="lbl">Shows on</span>
-    <div class="seg" id="ovWhere"><button data-where="all">Every frame</button><button data-where="one" title="Only on the frame shown now">This frame</button></div>
+    <span class="row span"><input id="txtSize" type="number" min="4" step="1"><span class="muted">px</span></span>
+    <label for="txtColor" class="tonly">Color</label><span class="row span tonly"><input id="txtColor" type="color" value="#000000" title="Text color"></span>
     <div class="wide note">In the preview: drag to move, scroll to resize, right-click for more.</div>
   </div></details>
 
@@ -537,7 +578,7 @@
     <span class="timing">
       <label for="defDelay" title="Sets every frame to this duration">Each frame</label><input id="defDelay" type="number" min="20" step="10" placeholder="mixed" title="Sets every frame to this duration"><span class="u">ms =</span><input id="fps" type="number" min="1" max="50" step="1" placeholder="mixed" title="Frames per second. GIFs count in 10 ms steps, so e.g. 24 fps becomes 25 (40 ms); 50 fps at most"><span class="u">fps</span>
       <span class="sep"></span>
-      <label for="total" title="Stretches or squeezes all frames so one loop lasts this long">Whole loop</label><input id="total" type="number" min="0.1" step="0.1" title="Stretches or squeezes all frames so one loop lasts this long"><span class="u">s</span>
+      <label for="total" title="Stretches or squeezes all frames so the whole GIF lasts this long">Total</label><input id="total" type="number" min="0.1" step="0.1" title="Stretches or squeezes all frames so the whole GIF lasts this long"><span class="u">s</span>
     </span>
     <span id="tc"></span><button id="bFrames" class="icon" title="Frame tools: reverse, remove every 2nd, double, fade, onion skin · or right-click a frame"><svg class="i"><use href="#i-more"/></svg></button></div>
   <div class="sbody"><div class="sinner">
@@ -781,7 +822,7 @@ const S = {
   playing: true, boomerang: false,
   useLayout: false, layout: null,  // { img, w, h, name, hole }
   fr: { x: 0, y: 0, w: 1, h: 1 },  // GIF frame inside the layout, layout px; the GIF is clipped to it
-  ct: { x: 0, y: 0, s: 1 },        // picture inside the frame, in frame widths (crop)
+  ct: { x: 0, y: 0, s: 1 }, ctBy: {},        // picture inside the frame, in frame widths (crop)
   crop: false,                     // crop mode: gestures move the picture, not the frame
   picked: new Set(), anchor: null,  // shift-click range in the filmstrip
   qStep: null,  // chosen quality (a LADDER step), null = automatic: best quality under AUTO_BYTES
@@ -921,7 +962,7 @@ function addFrame(bmp, name, delay) {
   const f = { id: ++uid, bmp, w: bmp.width, h: bmp.height, name, delay: clampDelay(delay) };
   f.thumb = makeThumb(frameSrc(f));
   S.frames.push(f);
-  if (!S.box) { S.box = { w: f.w, h: f.h }; S.ct = { x: 0, y: 0, s: 1 }; if (S.layout) place('fill'); }
+  if (!S.box) { S.box = { w: f.w, h: f.h }; S.ct = { x: 0, y: 0, s: 1 }; S.ctBy = {}; if (S.layout) place('fill'); }
 }
 
 // ---- zip: own reader (central directory + the browser's DecompressionStream) ----
@@ -1194,9 +1235,14 @@ function outSize() {
   const sc = scene(), k = S.outW ? S.outW / sc.w : Math.min(1, MAX_WIDTH / sc.w);  // a typed width may also enlarge
   return { w: Math.max(1, Math.round(sc.w * k)), h: !S.link && S.outH ? S.outH : Math.max(1, Math.round(sc.h * k)) };
 }
-function ratioText(w, h) {  // 4:3, 16:9 … or 1.85:1
-  const gcd = (a, b) => b ? gcd(b, a % b) : a, d = gcd(w, h);
-  return w / d <= 32 && h / d <= 32 ? `${w / d}:${h / d}` : `${(w / h).toFixed(2).replace(/\.?0+$/, '')}:1`;
+function ratioText(w, h, plain) {  // 4:3, 16:9, A-format … or 1.85:1 / 1:1.85; plain: numbers only
+  const gcd = (a, b) => b ? gcd(b, a % b) : a, d = gcd(w, h), r = w / h, n = x => x.toFixed(2).replace(/\.?0+$/, '');
+  if (!plain && Math.abs(Math.max(r, 1 / r) - Math.SQRT2) < 0.01) return r < 1 ? 'A-format, portrait' : 'A-format, landscape';
+  for (const [a, b] of [[16, 9], [4, 3], [3, 2], [5, 4], [21, 9]]) {  // near a common ratio (rounding)
+    if (Math.abs(r - a / b) < 0.006) return `${a}:${b}`; if (Math.abs(r - b / a) < 0.006) return `${b}:${a}`;
+  }
+  if (w / d <= 32 && h / d <= 32) return `${w / d}:${h / d}`;
+  return r >= 1 ? `${n(r)}:1` : `1:${n(1 / r)}`;
 }
 function scaleAround(p, f) {
   const r = target(); if (!r) return;
@@ -1646,13 +1692,13 @@ function openCtx(x, y) {
 // ---- layers panel: rows top to bottom; drag to reorder, eye to hide; background is fixed at the bottom ----
 let layerSel = false, layerDragFrom = -1, layerDrag = null;
 // clicking a layer opens its settings next to the Layers panel; texts and images open Properties on the left
-function openLayerSettings(L, row) {
-  const r = $('#layersPanel').getBoundingClientRect(), y = row.getBoundingClientRect().top;
+function openLayerSettings(L, row) {  // row: the element or its top in px
+  const r = $('#layersPanel').getBoundingClientRect(), y = typeof row === 'number' ? row : row.getBoundingClientRect().top;
   const place = box => { box.style.left = Math.max(8, r.left - box.offsetWidth - 10) + 'px'; box.style.top = Math.max(8, Math.min(y - 12, innerHeight - box.offsetHeight - 8)) + 'px'; };
   closeLayoutBox(); closeFramesBox?.(); closePictureBox?.();
   if (L.type === 'layout') { openLayoutBox(); place(layoutBox); }
   else if (L.type === 'frames') { openFramesBox(0, 0); place(framesBox); }
-  else if (L.type === 'bg') { openPictureBox(0, 0); place(pictureBox); }
+  else if (L.type === 'bg') openPictureBox();
   else { $('#inspPanel').classList.remove('folded'); $('#ovBox').open = true; setTimeout(() => $('#ovBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); }
 }
 function layerInfo(L) {
@@ -1682,11 +1728,11 @@ function layerThumb(L) {
 }
 function renderLayers() {
   const box = $('#layers'); if (!box || layerDragFrom >= 0) return;
-  $('#layersCount').textContent = S.items.filter(L => L.type !== 'layout' || S.layout).length + 1;
+  $('#layersCount').textContent = S.items.filter(L => L.type !== 'layout' || layoutOn()).length + 1;
   box.textContent = '';
   for (let i = S.items.length - 1; i >= 0; i--) {
     const L = S.items[i];
-    if (L.type === 'layout' && !S.layout) continue;
+    if (L.type === 'layout' && !layoutOn()) continue;
     const info = layerInfo(L), row = document.createElement('div');
     row.className = 'layer' + (i === S.ti ? ' sel' : '') + (L.hidden ? ' off' : ''); row.dataset.i = i;
     row.innerHTML = `<input type="checkbox" class="vis" title="Show / hide" ${L.hidden ? '' : 'checked'}><span class="lname"></span><span class="lsub"></span><span class="grip" title="Drag to reorder">⋮⋮</span>`;
@@ -1720,7 +1766,7 @@ function renderLayers() {
     row.onpointerup = () => {
       const d = layerDrag; if (!d || d.row !== row) return;
       layerDrag = null; layerDragFrom = -1;
-      if (!d.moved) { S.ti = i; layerSel = true; textUI(); dirty = true; openLayerSettings(L, row); return; }
+      if (!d.moved) { const y = row.getBoundingClientRect().top; S.ti = i; layerSel = true; textUI(); dirty = true; openLayerSettings(L, y); return; }
       if (d.target && d.target.L !== L) {
         const sel = S.items[S.ti]; S.items.splice(S.items.indexOf(L), 1);
         S.items.splice(S.items.indexOf(d.target.L) + (d.target.above ? 1 : 0), 0, L);  // rows top to bottom, the list bottom to top
@@ -1861,8 +1907,9 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeExp(); });
 let addAt = null;  // where a right-click on the preview opened the add menu (fractions of the GIF); new layers go there
 $('#addText').onclick = () => {
   closeAdd(); if (!S.box) return say('Add frames first, then text.', true);
-  const at = addAt || { x: 0.08, y: 0.08 };
-  S.items.push({ ...S.tdef, type: 'text', str: 'Text', x: at.x, y: at.y, frame: null }); S.ti = S.items.length - 1;
+  const t = { ...S.tdef, type: 'text', str: 'Text', x: addAt?.x ?? 0, y: addAt?.y ?? 0, frame: null };
+  S.items.push(t); S.ti = S.items.length - 1;
+  if (!addAt) { const b = textBox(t), sc = scene(); t.x = 0.5 - b.w / sc.w / 2; t.y = 0.5 - b.h / sc.h / 2; }  // from + Add: in the middle
   textUI(); dirty = true; openOverlaySettings(true);
 };
 $('#addImg').onclick = () => { closeAdd(); if (!S.box) return say('Add frames first, then an image.', true); $('#ovFile').click(); };
@@ -2148,6 +2195,8 @@ function textUI() {
   const cur = curItem(); renderLayers();
   $('#ovBox').classList.toggle('img', cur?.type === 'image'); $('#ovBox').classList.toggle('none', !cur);
   for (const b of $('#ovWhere').children) b.classList.toggle('on', (b.dataset.where === 'one') === !!cur?.frame);
+  const fn = cur?.frame ? S.frames.findIndex(f => f.id === cur.frame) + 1 : 0;  // pinned: which frame
+  $('#ovWhere [data-where=one]').textContent = fn ? `Only frame ${fn}` : 'One frame';
   if (document.activeElement !== $('#txt')) $('#txt').value = cur?.type === 'text' ? cur.str : '';
   const o = outSize(), set = (id, v) => { if (document.activeElement !== $(id)) $(id).value = Math.round(v); };
   set('#txtX', S.text.x * o.w); set('#txtY', S.text.y * o.h); set('#txtSize', S.text.size * o.w);
@@ -2155,7 +2204,7 @@ function textUI() {
 }
 $('#txt').oninput = () => {
   if (curItem()?.type !== 'text') { S.items.push({ ...S.tdef, type: 'text', frame: null }); S.ti = S.items.length - 1; }  // typing starts a new text
-  S.text.str = $('#txt').value; dirty = true;
+  S.text.str = $('#txt').value; dirty = true; renderLayers();
 };
 $('#txtFont').onchange = () => { S.text.font = $('#txtFont').value; dirty = true; };
 $('#bFont').onclick = () => $('#fontFile').click();
@@ -2182,7 +2231,7 @@ const outUI = () => {
   placeRes(); const o = outSize();
   if (document.activeElement !== $('#outCustom')) $('#outCustom').value = o.w;
   if (document.activeElement !== $('#outH')) $('#outH').value = o.h;
-  if (document.activeElement !== $('#outRatio')) $('#outRatio').value = ratioText(o.w, o.h);
+  if (document.activeElement !== $('#outRatio')) $('#outRatio').value = ratioText(o.w, o.h, true);
   $('#bLink').classList.toggle('on', S.link); $('#bLink').querySelector('use').setAttribute('href', S.link ? '#i-link' : '#i-unlink');
   $('#bLink').title = S.link ? 'Aspect ratio kept · click to set width and height freely' : 'Width and height are free (stretches) · click to keep the aspect ratio';
  };
@@ -2215,7 +2264,11 @@ $('#file').onchange = e => { handleFiles(e.target.files); e.target.value = ''; }
 $('#bLayout').onclick = () => $('#layoutFile').click();
 $('#layoutFile').onchange = e => { if (e.target.files[0]) setLayout(e.target.files[0]); e.target.value = ''; };
 $('#useLayout').onchange = $('#useLayout2').onchange = e => {
+  // with and without the layout the picture has its own crop: turning the layout off restores the GIF as it was
+  const was = layoutOn() ? 'layout' : 'plain'; S.ctBy[was] = { ...S.ct };
   S.useLayout = e.target.checked;
+  const now = S.useLayout && S.layout ? 'layout' : 'plain';
+  if (now !== was) S.ct = S.ctBy[now] ? { ...S.ctBy[now] } : now === 'plain' ? { x: 0, y: 0, s: 1 } : S.ct;
   if (S.useLayout && !S.layout) setTemplate('a4');  // start with a template; your own file can replace it
   changed();
   if (S.useLayout && e.target.id === 'useLayout') openLayoutBox();  // its settings show next to the toggle
@@ -2230,18 +2283,13 @@ function openLayoutBox() {
   layoutBox.style.top = r.bottom + 10 + 'px';
 }
 const closeLayoutBox = () => layoutBox.classList.add('hidden');
-// picture settings (background, opacity): right-click on the preview → Picture…
-const pictureBox = $('#pictureBox');
-function openPictureBox(x, y) {
-  closeAdd?.(); closeExp?.(); closeLayoutBox();
-  pictureBox.classList.remove('hidden');
-  pictureBox.style.left = Math.max(8, Math.min(x, innerWidth - pictureBox.offsetWidth - 8)) + 'px';
-  pictureBox.style.top = Math.max(8, Math.min(y, innerHeight - pictureBox.offsetHeight - 8)) + 'px';
+// picture settings (background, opacity): right-click on the preview → Background…
+// background settings live in Properties → Background
+function openPictureBox() {
+  $('#inspPanel').classList.remove('folded'); $('#bgBox').open = true;
+  setTimeout(() => $('#bgBox').scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60);
 }
-const closePictureBox = () => pictureBox.classList.add('hidden');
-$('#addPic').onclick = () => { const r = addMenu.getBoundingClientRect(); openPictureBox(r.left, r.top); };
-addEventListener('pointerdown', e => { if (!e.target.closest('#pictureBox, #addMenu, #layers')) closePictureBox(); }, true);
-addEventListener('keydown', e => { if (e.key === 'Escape') closePictureBox(); });
+const closePictureBox = () => {};
 // frame tools: a panel above the filmstrip, from the ⋯ in its header or a right-click on a frame
 const framesBox = $('#framesBox');
 function openFramesBox(x, y) {
@@ -2616,6 +2664,84 @@ function clearDemo() {
 setBg(S.clear);
 changed();
 addDemo();
+// ---- first steps: numbered notes with arrows over a darkened screen; ? shows them again ----
+// each: target, where on it the arrow ends, offset of the note from there, text and a smaller second line
+// each: target, side where its short label sits, title, explanation; main: the 3 steps you need, the rest under "More"
+const HELP = [
+  { main: 1, el: () => $('#bAdd'), side: 'bottom', t: 'Add', s: 'drop images, a folder, a .zip or a video anywhere on the page, or click here. Each image is one frame.' },
+  { main: 1, el: () => $('#strip .timing'), side: 'top', t: 'Length', s: 'how long each frame shows (ms or fps) or the total length of the GIF.' },
+  { main: 1, el: () => $('#bExport'), side: 'bottom', t: 'Export', s: 'downloads the GIF · right-click for quality and file size.' },
+  { el: () => $('#strip .phead h1'), side: 'top', t: 'Frames', s: 'click to see all frames · reorder, remove, timing per frame.' },
+  { el: () => canvas, side: 'inside', t: 'Preview', s: 'double-click to crop · right-click to add text or an image.' },
+  { el: () => $('#bBoom'), side: 'bottom', t: 'Boomerang', s: 'plays forward, then backward.' },
+  { el: () => $('#floatSwitch'), side: 'bottom', t: 'Layout', s: 'puts the GIF on a page, e.g. A4 with the date.' },
+  { el: () => $('#inspPanel'), side: 'right', t: 'Properties', s: 'background, colors, text settings.' },
+  { el: () => $('#layersPanel'), side: 'left', t: 'Layers', s: 'what is on top · show, hide, reorder.' },
+  { el: () => $('#resLabel'), side: 'left', t: 'Size', s: 'the GIF in px · click to change width, height, ratio.' },
+];
+let helpMore = false;
+function showHelp() {
+  closeAdd?.(); closeQual?.(); closeExp?.(); toggleMenu?.(false);
+  const help = $('#help'), svg = $('#helpSvg'), holes = $('#helpHoles'), notes = $('#helpNotes'), card = $('#helpCard');
+  help.classList.remove('hidden');
+  svg.querySelectorAll('.ring, .arrow').forEach(n => n.remove()); holes.querySelectorAll('.hole').forEach(n => n.remove()); notes.textContent = '';
+  const NS = 'http://www.w3.org/2000/svg', mk = (parent, tag, a) => { const n = document.createElementNS(NS, tag); for (const k in a) n.setAttribute(k, a[k]); parent.append(n); return n; };
+  card.innerHTML = '<h3>Make a GIF in 3 steps</h3>';
+  const items = [];  // per step: its hole, ring, arrow, label and card line, to focus one on hover
+  let n = 0;
+  for (const h of HELP) {
+    if (!h.main && !helpMore) continue;
+    const el = h.el(); if (!el) continue;
+    const r0 = el.getBoundingClientRect(); if (!r0.width || r0.bottom < 0 || r0.top > innerHeight) continue;
+    n++;
+    if (!h.main && !card.querySelector('h3.more')) card.insertAdjacentHTML('beforeend', '<h3 class="more">Also useful</h3>');
+    const it = { inside: h.side === 'inside' };
+    const pad = it.inside ? 0 : 5, r = { l: r0.left - pad, t: r0.top - pad, w: r0.width + 2 * pad, h: r0.height + 2 * pad }; r.r = r.l + r.w; r.b = r.t + r.h;
+    const rad = Math.min(20, r.h / 2);
+    it.hole = mk(holes, 'rect', { class: 'hole', x: r.l, y: r.t, width: r.w, height: r.h, rx: rad, fill: '#000', 'fill-opacity': it.inside ? .55 : 1 });
+    if (!it.inside) it.ring = mk(svg, 'rect', { class: 'ring', x: r.l, y: r.t, width: r.w, height: r.h, rx: rad });
+    const p = document.createElement('p'); p.innerHTML = `<b class="hnum">${n}</b><span><b></b> — <i></i></span>`;
+    p.querySelector('span b').textContent = h.t; p.querySelector('span i').textContent = h.s; card.append(p); it.line = p;
+    const lab = document.createElement('div'); lab.className = 'hl'; lab.innerHTML = `<b class="hnum">${n}</b>`; lab.append(h.t); notes.append(lab); it.lab = lab;
+    const w = lab.offsetWidth, hh = lab.offsetHeight, GAP = 44, cx = r.l + r.w / 2, cy = r.t + Math.min(r.h / 2, 90);
+    let x, y, a, b;
+    if (h.side === 'bottom') { x = cx - w / 2; y = r.b + GAP; a = [cx, y - 4]; b = [cx, r.b + 3]; }
+    else if (h.side === 'top') { x = r.l + 8 + (h.shift || 0); y = r.t - GAP - hh; a = [x + 10, y + hh + 4]; b = [r.l + Math.min(r.w / 2, 18), r.t - 3]; }
+    else if (h.side === 'right') { x = r.r + GAP; y = cy - hh / 2; a = [x - 4, cy]; b = [r.r + 3, cy]; }
+    else if (h.side === 'left') { x = r.l - GAP - w; y = cy - hh / 2; a = [x + w + 4, cy]; b = [r.l - 3, cy]; }
+    else { x = r.l + 14; y = r.b - hh - 14; }
+    lab.style.left = x + 'px'; lab.style.top = y + 'px';
+    if (a) it.arrow = mk(svg, 'path', { class: 'arrow', d: `M${a[0]} ${a[1]} L${b[0]} ${b[1]}`, 'marker-end': 'url(#helpArrow)' });
+    items.push(it);
+  }
+  // pointing at a line in the card: only that step stays lit, the others fade
+  const focus = sel => items.forEach(it => {
+    const on = !sel || it === sel;
+    it.hole.setAttribute('fill-opacity', on ? (it.inside ? .55 : 1) : .25);
+    for (const e of [it.ring, it.arrow, it.lab]) if (e) e.style.opacity = on ? 1 : .12;
+    it.lab.style.zIndex = sel && on ? 3 : '';  // the pointed-at label shows even where the card covers it
+    it.line.style.opacity = on ? 1 : .45;
+  });
+  for (const it of items) { it.line.onpointerenter = () => focus(it); it.line.onpointerleave = () => focus(null); }
+  const more = document.createElement('button'); more.className = 'hmore';
+  more.textContent = helpMore ? 'Show only the 3 steps' : 'More: frames, layout, layers…';
+  more.onclick = e => { e.stopPropagation(); helpMore = !helpMore; showHelp(); };
+  card.append(more);
+  card.insertAdjacentHTML('beforeend', '<div class="hhint">Point at a step to see where it is · click outside to close · <b>?</b> shows this again</div>');
+  card.onclick = e => e.stopPropagation();  // reading the card does not close the help
+  const c = canvas.getBoundingClientRect(), cw = card.offsetWidth, ch = card.offsetHeight;
+  card.style.left = Math.max(20, Math.min(innerWidth - cw - 20, c.left + c.width / 2 - cw / 2)) + 'px';
+  const top0 = bar.getBoundingClientRect().bottom + 95;  // below the labels of the toolbar buttons
+  card.style.top = Math.max(top0, Math.min(innerHeight - ch - 40, c.top + c.height / 2 - ch / 2 + 20)) + 'px';
+  localStorage.setItem('gifgen.helpSeen', '1');
+}
+const hideHelp = () => $('#help').classList.add('hidden');
+$('#bHelp').onclick = showHelp;
+$('#help').onclick = hideHelp;
+addEventListener('keydown', e => { if (e.key === 'Escape') hideHelp(); });
+addEventListener('resize', () => { if (!$('#help').classList.contains('hidden')) showHelp(); });
+new ResizeObserver(() => { if (!$('#help').classList.contains('hidden')) showHelp(); }).observe(canvas);  // the preview may still be settling
+if (!localStorage.getItem('gifgen.helpSeen')) setTimeout(showHelp, 1500);  // first visit, once the layout has settled
 </script>
 </body>
 </html>
